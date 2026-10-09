@@ -20,6 +20,21 @@ const PAGES = [
     back: 'Mohamed Gamal',
     foot: 'Designed and built by me.',
   },
+  {
+    lang: 'ar',
+    dir: 'rtl',
+    path: AR_PATH,
+    title: 'صندوق بريد لحظي لبائعي العقارات · محمد جمال',
+    h1: 'صندوق بريد لحظي لبائعي العقارات',
+    description:
+      'كيف بنيت صندوق بريد البائعين في Getridley بـ SES وS3 وSQS وLambda وDynamoDB وWebSockets، ولماذا لا تمر المرفقات الكبيرة عبر الـ queue أبدًا.',
+    kicker: 'دراسة حالة · عقارات',
+    sections: ['السياق', 'لماذا claim check', 'ماذا كلّف هذا التصميم', 'الاعتمادية', 'التسليم'],
+    current: 'عربي',
+    other: { text: 'EN', href: EN_PATH },
+    back: 'محمد جمال',
+    foot: 'صمّمتُه وبنيتُه بنفسي.',
+  },
 ];
 
 for (const p of PAGES) {
@@ -96,3 +111,26 @@ for (const p of PAGES) {
     });
   });
 }
+
+test('the Arabic page loads Readex Pro and the English page does not', async ({ page }) => {
+  const fonts: string[] = [];
+  page.on('request', (req) => {
+    if (req.url().includes('readex-pro')) fonts.push(req.url());
+  });
+  await page.goto(EN_PATH);
+  await page.waitForLoadState('networkidle');
+  expect(fonts).toEqual([]);
+  await page.goto(AR_PATH);
+  await page.waitForLoadState('networkidle');
+  expect(fonts.some((url) => /readex-pro-arabic-400-normal.*\.woff2$/.test(url))).toBe(true);
+});
+
+test('Arabic text uses Readex Pro first', async ({ page }) => {
+  await page.goto(AR_PATH);
+  await expect(page.locator('body')).toHaveCSS('font-family', /^"Readex Pro"/);
+});
+
+test('the Arabic skip link is translated', async ({ page }) => {
+  await page.goto(AR_PATH);
+  await expect(page.locator('a.skip-link')).toHaveText('انتقل إلى المحتوى');
+});

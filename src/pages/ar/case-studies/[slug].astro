@@ -1,0 +1,27 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import CaseStudyLayout from '../../../layouts/CaseStudyLayout.astro';
+import '@fontsource/readex-pro/arabic-400.css';
+import '@fontsource/readex-pro/arabic-500.css';
+import '@fontsource/readex-pro/arabic-600.css';
+import readex400Url from '@fontsource/readex-pro/files/readex-pro-arabic-400-normal.woff2?url';
+import readex600Url from '@fontsource/readex-pro/files/readex-pro-arabic-600-normal.woff2?url';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('caseStudies', ({ data }) => data.lang === 'ar');
+  return entries.map((entry) => ({ params: { slug: entry.data.translationOf }, props: { entry } }));
+}
+
+interface Props {
+  entry: CollectionEntry<'caseStudies'>;
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+
+<CaseStudyLayout {...entry.data}>
+  <link slot="head" rel="preload" href={readex400Url} as="font" type="font/woff2" crossorigin />
+  <link slot="head" rel="preload" href={readex600Url} as="font" type="font/woff2" crossorigin />
+  <Content />
+</CaseStudyLayout>
