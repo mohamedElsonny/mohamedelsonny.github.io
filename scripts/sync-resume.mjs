@@ -3,7 +3,6 @@
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { pdfText } from './lib/pdf-text.mjs';
 
 const cvTailor = resolve(process.env.CV_TAILOR_DIR ?? '../ai-cv-tailor');
 const builder = join(cvTailor, 'scripts', 'build_general_cv_pdf.py');
@@ -29,6 +28,5 @@ if (buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
   console.error(`Not a PDF: ${built}`);
   process.exit(1);
 }
-const { pages } = await pdfText(buffer);
 copyFileSync(built, target);
-console.log(`Copied ${pages}-page CV to public/resume.pdf`);
+console.log('Copied CV to public/resume.pdf');
