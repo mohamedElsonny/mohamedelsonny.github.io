@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import '../styles/notfound.css';
+---
+
+<BaseLayout title="Page not found · Mohamed Gamal" description="This page does not exist." path="/404" noindex>
+  <main id="main" tabindex="-1" class="notfound">
+    <p class="notfound__code">404</p>
+    <h1 class="notfound__title">Page not found</h1>
+    <p>The page you're looking for doesn't exist or has moved.</p>
+    <a class="notfound__back" href="/"><span aria-hidden="true">←</span> Back to home</a>
+  </main>
+</BaseLayout>

@@ -17,9 +17,20 @@ const sections = [
   { id: 'experience', label: 'Experience' },
   { id: 'projects', label: 'Projects' },
 ];
+
+// No email and no phone, by spec §9.
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: profile.name,
+  jobTitle: profile.title,
+  url: `${profile.siteUrl}/`,
+  address: { '@type': 'PostalAddress', addressLocality: 'Cairo', addressCountry: 'EG' },
+  sameAs: [profile.links.github, profile.links.linkedin],
+};
 ---
 
-<BaseLayout title={`${profile.name} · ${profile.title}`} description={profile.lead}>
+<BaseLayout title={`${profile.name} · ${profile.title}`} description={profile.lead} jsonLd={jsonLd}>
   <Spotlight />
   <div class="page">
     <header class="intro">
