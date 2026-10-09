@@ -118,11 +118,11 @@ tests/*.spec.ts
 
 Run:
 ```bash
-npm install astro@7.3.8 @astrojs/sitemap@3.7.4 @fontsource/inter@5.3.0 @fontsource/jetbrains-mono@5.3.0
-npm install -D @astrojs/check@0.9.10 typescript@6.0.3 @playwright/test@1.64.0 @axe-core/playwright@4.13.0 unpdf@1.8.1 @lhci/cli@0.15.1
+npm install --save-exact astro@7.3.8 @astrojs/sitemap@3.7.4 @fontsource/inter@5.3.0 @fontsource/jetbrains-mono@5.3.0
+npm install --save-exact -D @astrojs/check@0.9.10 typescript@6.0.3 @playwright/test@1.64.0 @axe-core/playwright@4.13.0 unpdf@1.8.1 @lhci/cli@0.15.1
 npx playwright install chromium
 ```
-Expected: `package-lock.json` is created and there are no errors. Do not use TypeScript 7; @astrojs/check 0.9.10 does not support it.
+Expected: `package-lock.json` is created, there are no errors, and every version in `package.json` is exact (no `^`). Do not use TypeScript 7; @astrojs/check 0.9.10 does not support it.
 
 - [ ] **Step 3: Create the configs**
 
@@ -192,6 +192,7 @@ dist/
 .lighthouseci/
 test-results/
 playwright-report/
+.pi/
 ```
 
 - [ ] **Step 4: Write the failing smoke test**
