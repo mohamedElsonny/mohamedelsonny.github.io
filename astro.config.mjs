@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
@@ -9,5 +10,5 @@ export default defineConfig({
     locales: ['en', 'ar'],
     routing: { prefixDefaultLocale: false },
   },
-  integrations: [sitemap({ filter: (page) => !page.includes('404') })],
+  integrations: [mdx(), sitemap({ filter: (page) => !page.includes('404') })],
 });

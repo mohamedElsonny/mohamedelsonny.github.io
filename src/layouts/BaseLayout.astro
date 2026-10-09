@@ -19,11 +19,13 @@ interface Props {
   path?: string;
   noindex?: boolean;
   jsonLd?: Record<string, unknown>;
+  alternates?: { lang: string; path: string }[];
 }
 
-const { title, description, lang = 'en', dir = 'ltr', path = '/', noindex = false, jsonLd } = Astro.props;
+const { title, description, lang = 'en', dir = 'ltr', path = '/', noindex = false, jsonLd, alternates = [] } = Astro.props;
 const canonical = new URL(path, Astro.site).href;
 const ogImage = new URL('/og.png', Astro.site).href;
+const skipLabel = lang === 'ar' ? 'انتقل إلى المحتوى' : 'Skip to content';
 ---
 
 <!doctype html>
@@ -34,6 +36,7 @@ const ogImage = new URL('/og.png', Astro.site).href;
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    {alternates.map((a) => <link rel="alternate" hreflang={a.lang} href={new URL(a.path, Astro.site).href} />)}
     <meta name="theme-color" content="#0c1222" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href={interUrl} as="font" type="font/woff2" crossorigin />
@@ -53,9 +56,10 @@ const ogImage = new URL('/og.png', Astro.site).href;
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    <slot name="head" />
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href="#main">{skipLabel}</a>
     <slot />
   </body>
 </html>

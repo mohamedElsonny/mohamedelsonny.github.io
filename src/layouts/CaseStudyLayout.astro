@@ -1,0 +1,102 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Spotlight from '../components/Spotlight.astro';
+import Tags from '../components/Tags.astro';
+import { profile } from '../content/profile';
+import '../styles/case-study.css';
+
+interface Props {
+  title: string;
+  description: string;
+  lead: string;
+  lang: 'en' | 'ar';
+  translationOf: string;
+  label: string;
+  tags: string[];
+}
+
+const { title, description, lead, lang, translationOf, label, tags } = Astro.props;
+
+const UI = {
+  en: {
+    name: 'Mohamed Gamal',
+    arrow: '←',
+    kicker: 'Case study',
+    languages: 'Language',
+    tags: 'Technologies',
+    foot: 'Designed and built by me.',
+  },
+  ar: {
+    name: 'محمد جمال',
+    arrow: '→',
+    kicker: 'دراسة حالة',
+    languages: 'اللغة',
+    tags: 'التقنيات',
+    foot: 'صمّمتُه وبنيتُه بنفسي.',
+  },
+} as const;
+
+const ui = UI[lang];
+const paths = { en: `/case-studies/${translationOf}/`, ar: `/ar/case-studies/${translationOf}/` };
+const alternates = [
+  { lang: 'en', path: paths.en },
+  { lang: 'ar', path: paths.ar },
+  { lang: 'x-default', path: paths.en },
+];
+
+// No email and no phone, by spec §8.
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  headline: title,
+  description,
+  inLanguage: lang,
+  author: { '@type': 'Person', name: profile.name, url: `${profile.siteUrl}/` },
+  url: new URL(paths[lang], Astro.site).href,
+};
+---
+
+<BaseLayout
+  title={`${title} · ${ui.name}`}
+  description={description}
+  lang={lang}
+  dir={lang === 'ar' ? 'rtl' : 'ltr'}
+  path={paths[lang]}
+  alternates={alternates}
+  jsonLd={jsonLd}
+>
+  <slot name="head" slot="head" />
+  <Spotlight />
+  <div class="cs">
+    <header class="cs__top">
+      <a class="cs__back" href="/"><span aria-hidden="true">{ui.arrow}</span> {ui.name}</a>
+      <nav class="cs__lang" aria-label={ui.languages}>
+        <ul>
+          <li>
+            {lang === 'en' ? <span aria-current="page">EN</span> : <a href={paths.en} lang="en" hreflang="en">EN</a>}
+          </li>
+          <li>
+            {lang === 'ar' ? <span aria-current="page">عربي</span> : <a href={paths.ar} lang="ar" hreflang="ar">عربي</a>}
+          </li>
+        </ul>
+      </nav>
+    </header>
+    <main id="main" tabindex="-1">
+      <article>
+        <header class="cs__head">
+          <p class="cs__kicker">{ui.kicker} · {label}</p>
+          <h1 class="cs__title">{title}</h1>
+          <p class="cs__lead">{lead}</p>
+          <Tags items={tags} label={ui.tags} />
+        </header>
+        <div class="cs__body">
+          <slot />
+        </div>
+      </article>
+    </main>
+    <footer class="cs__foot">
+      <p>{ui.foot}</p>
+      <a class="cs__back" href="/"><span aria-hidden="true">{ui.arrow}</span> {ui.name}</a>
+    </footer>
+  </div>
+</BaseLayout>

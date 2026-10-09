@@ -1,0 +1,173 @@
+/* Case-study pages (spec §4). Mobile-first; desktop rules from 1024px, like Home. */
+
+html[lang='ar'] body {
+  font-family: 'Readex Pro', var(--font-sans);
+}
+
+.cs {
+  /* Height of the sticky section title; the mobile diagram sticks right under it. */
+  --cs-bar: 48px;
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+.cs__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 24px;
+}
+
+.cs__back {
+  display: inline-block;
+  padding-block: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink);
+  transition: color 0.2s;
+}
+
+.cs__back:hover {
+  color: var(--teal);
+}
+
+.cs__lang ul {
+  display: flex;
+  gap: 4px;
+}
+
+.cs__lang a,
+.cs__lang [aria-current] {
+  display: inline-block;
+  padding-block: 4px;
+  padding-inline: 10px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cs__lang a {
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.cs__lang a:hover {
+  color: var(--ink);
+}
+
+.cs__lang [aria-current] {
+  color: var(--ink);
+  background: var(--tag-bg);
+}
+
+.cs__head {
+  max-width: 45rem;
+  padding-block: 40px 8px;
+}
+
+.cs__kicker {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
+.cs__title {
+  margin-block: 14px 16px;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.cs__lead {
+  margin-block-end: 20px;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+
+.cs .section {
+  margin-block-start: 56px;
+}
+
+/* Prose keeps an article column; the section title and the scrolly use the full width. */
+.cs .section > * {
+  max-width: 45rem;
+}
+
+.cs .section > .section__title,
+.cs .section > .scrolly {
+  max-width: none;
+}
+
+.cs .section__title {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 3;
+  block-size: var(--cs-bar);
+  margin-block-end: 8px;
+  margin-inline: -24px;
+  padding-block: 16px 12px;
+  padding-inline: 24px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--title-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.cs .section > p {
+  margin-block-end: 16px;
+  line-height: 1.8;
+}
+
+.cs code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--ink);
+}
+
+.cs__foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 45rem;
+  padding-block: 48px 64px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* Letter spacing breaks Arabic joining. */
+html[lang='ar'] .cs__kicker,
+html[lang='ar'] .cs__title,
+html[lang='ar'] .cs .section__title {
+  letter-spacing: 0;
+}
+
+html[lang='ar'] .cs__title {
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+@media (min-width: 1024px) {
+  .cs {
+    padding-inline: 48px;
+  }
+
+  .cs .section__title {
+    margin-inline: -48px;
+    padding-inline: 48px;
+  }
+}

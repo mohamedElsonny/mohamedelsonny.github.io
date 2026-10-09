@@ -1,11 +1,13 @@
 ---
 interface Props {
   items: string[];
+  /** Accessible name of the list; Arabic pages pass their own. */
+  label?: string;
 }
 
-const { items } = Astro.props;
+const { items, label = 'Technologies' } = Astro.props;
 ---
 
-<ul class="tags" aria-label="Technologies">
+<ul class="tags" aria-label={label}>
   {items.map((item) => <li class="tag">{item}</li>)}
 </ul>

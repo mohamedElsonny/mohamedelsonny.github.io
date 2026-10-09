@@ -4,7 +4,7 @@ import { extname, join } from 'node:path';
 export const ROOT = process.cwd();
 
 const TEXT_EXT = new Set([
-  '.html', '.xml', '.txt', '.js', '.mjs', '.css', '.json', '.svg', '.webmanifest', '.astro', '.ts', '.md',
+  '.html', '.xml', '.txt', '.js', '.mjs', '.css', '.json', '.svg', '.webmanifest', '.astro', '.ts', '.md', '.mdx',
 ]);
 
 export function walk(dir: string): string[] {

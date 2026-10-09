@@ -131,23 +131,6 @@
   line-height: 1.6;
 }
 
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tag {
-  padding-block: 3px;
-  padding-inline: 10px;
-  border-radius: 999px;
-  background: var(--tag-bg);
-  color: var(--teal);
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.5;
-}
-
 .more {
   display: inline-block;
   margin-block-start: 14px;
@@ -327,25 +310,6 @@
   .row--link:focus-within .row__arrow {
     transform: translate(3px, -3px);
   }
-}
-
-/* Static glow at the top of the page (mobile, tablet, reduced motion). */
-.spotlight {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 0;
-  z-index: 0;
-  height: 640px;
-  pointer-events: none;
-  background: radial-gradient(400px circle at 20% 0%, var(--spot), transparent 60%);
-}
-
-/* Pointer spotlight (desktop only, toggled by Spotlight.astro). */
-.has-spotlight .spotlight {
-  position: fixed;
-  inset: 0;
-  height: auto;
-  background: radial-gradient(560px circle at var(--mx, 60%) var(--my, 20%), var(--spot), transparent 62%);
 }
 
 @media (max-width: 1023.98px) {
