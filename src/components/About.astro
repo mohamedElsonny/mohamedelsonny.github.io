@@ -1,0 +1,13 @@
+---
+import type { RichText } from '../content/types';
+
+interface Props {
+  paragraphs: RichText[];
+}
+
+const { paragraphs } = Astro.props;
+---
+
+<div class="about">
+  {paragraphs.map((parts) => <p>{parts.map((part) => (typeof part === 'string' ? part : <strong>{part.strong}</strong>))}</p>)}
+</div>

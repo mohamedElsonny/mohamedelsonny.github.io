@@ -1,10 +1,55 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import Section from '../components/Section.astro';
+import About from '../components/About.astro';
+import Row from '../components/Row.astro';
+import { profile } from '../content/profile';
+import { experience } from '../content/experience';
+import { projects } from '../content/projects';
+import '../styles/home.css';
 ---
 
-<BaseLayout
-  title="Mohamed Gamal · Senior Full Stack Engineer"
-  description="I design and ship scalable web apps, serverless pipelines, and real-time systems."
->
-  <main id="main" tabindex="-1"><h1>Mohamed Gamal</h1></main>
+<BaseLayout title={`${profile.name} · ${profile.title}`} description={profile.lead}>
+  <div class="page">
+    <header class="intro">
+      <div>
+        <Hero name={profile.name} title={profile.title} lead={profile.lead} />
+      </div>
+    </header>
+    <div class="content">
+      <main id="main" tabindex="-1">
+        <Section id="about" title="About">
+          <About paragraphs={profile.about} />
+        </Section>
+        <Section id="experience" title="Experience">
+          <ul class="rows">
+            {
+              experience.map((item) => (
+                <Row
+                  label={item.period}
+                  title={item.role}
+                  subtitle={item.company}
+                  summary={item.summary}
+                  tags={item.tags}
+                  href={item.href}
+                />
+              ))
+            }
+          </ul>
+          <a class="more" href="/resume.pdf" download="Mohamed-Gamal-CV.pdf">View full résumé <span aria-hidden="true">→</span></a>
+        </Section>
+        <Section id="projects" title="Projects">
+          <ul class="rows">
+            {
+              projects.map((item) => (
+                <Row label={item.label} title={item.title} summary={item.summary} tags={item.tags} href={item.href} />
+              ))
+            }
+          </ul>
+        </Section>
+      </main>
+      <footer class="foot">Designed and built by me. Case studies and Arabic articles are coming.</footer>
+    </div>
+  </div>
 </BaseLayout>

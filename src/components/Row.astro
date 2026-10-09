@@ -1,0 +1,39 @@
+---
+import Tags from './Tags.astro';
+
+interface Props {
+  label: string;
+  title: string;
+  subtitle?: string;
+  summary: string;
+  tags: string[];
+  /** Only linked rows get the arrow, the teal title and keyboard focus (spec §5). */
+  href?: string;
+}
+
+const { label, title, subtitle, summary, tags, href } = Astro.props;
+---
+
+<li class:list={['row', { 'row--link': href }]}>
+  <p class="row__label">{label}</p>
+  <div class="row__body">
+    <h3 class="row__title">
+      {
+        href ? (
+          <a class="row__link" href={href}>
+            {title}
+            {subtitle && <span class="row__sub">· {subtitle}</span>}
+            <span class="row__arrow" aria-hidden="true">↗</span>
+          </a>
+        ) : (
+          <>
+            {title}
+            {subtitle && <span class="row__sub">· {subtitle}</span>}
+          </>
+        )
+      }
+    </h3>
+    <p class="row__summary">{summary}</p>
+    <Tags items={tags} />
+  </div>
+</li>
