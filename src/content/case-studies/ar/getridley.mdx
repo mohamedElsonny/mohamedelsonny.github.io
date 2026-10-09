@@ -10,6 +10,48 @@ tags: ["AWS SES", "S3", "SQS", "Lambda", "DynamoDB", "WebSockets"]
 ---
 
 import Section from '../../../components/Section.astro';
+import PipelineScrolly from '../../../components/case-study/PipelineScrolly.astro';
+
+{/* Step sources: 1 A:51697763, A:9577edf2 · 2 F:e4e94791, F:df0de13e · 3 F:b9f5b694, F:1de76cfa · 4 F:1de76cfa, F:16f362d2 · 5 A:51697763, decision 31ae17de · 6 A:0c92c89f, F:fc706c71, F:95133f62 */}
+
+export const steps = [
+  {
+    title: 'نقطة البداية كانت موجودة',
+    body: 'كان في صفحات العقارات زر “Contact seller” يرسل البريد إلى البائع مباشرةً. حوّلتُه إلى خادم بريد مخصص على <code>inbox.getridley.com</code>، فصار كل استفسار يُستقبل داخل الكود بدلًا من أن يضيع في بريد شخصي.',
+  },
+  {
+    title: 'SES يستقبل البريد',
+    body: 'يستقبل Amazon SES الرسالة مع تفعيل فحص الـ spam والفيروسات المُدار. يتعامل التطبيق مع نتائج الفحص، ولا يوجد محرك antivirus خاص يحتاج إلى صيانة.',
+  },
+  {
+    title: 'الرسالة الخام تذهب إلى S3',
+    body: 'يرفق المشترون عقود الملكية وصورًا عالية الدقة للعقار. تُخزَّن الرسالة الخام كاملةً بمرفقاتها في S3، ولا تُمرَّر من مكان إلى آخر.',
+  },
+  {
+    title: 'مرجع فقط يدخل الـ queue',
+    body: 'يحمل SQS مرجعًا صغيرًا للملف وبيانات التوجيه، ولا يحمل المرفق نفسه أبدًا. والرسائل التي يتكرر فشلها تنتقل إلى dead-letter queue بدلًا من إعادة المحاولة إلى ما لا نهاية.',
+  },
+  {
+    title: 'Lambda تقوم بالعمل',
+    body: 'تقرأ دالة Lambda الرسالة من S3، وتفتح محادثة بين المشتري والبائع تحتوي عليها، وتحفظ metadata قابلة للبحث في DynamoDB.',
+  },
+  {
+    title: 'البائع يراها فورًا',
+    body: 'تدفع API Gateway WebSockets الرسالة الجديدة إلى الـ dashboard الخاصة بالبائع لحظيًا. وترسل دالة Lambda نفسها نسخةً إلى البائع عبر SES، فلا يتغير شيء في عادته القديمة.',
+  },
+];
+
+export const pipelineLabels = {
+  buyer: { main: 'المشتري', sub: 'زر التواصل' },
+  ses: { main: 'SES', sub: 'spam + فيروسات' },
+  s3: { main: 'S3', sub: 'الرسالة الخام' },
+  sqs: { main: 'SQS', sub: 'مرجع فقط' },
+  dlq: { main: 'DLQ' },
+  lambda: { main: 'Lambda', sub: 'تحليل + محادثة' },
+  dynamodb: { main: 'DynamoDB', sub: 'metadata' },
+  websocket: { main: 'WebSocket', sub: 'API Gateway' },
+  inbox: { main: 'صندوق البائع', sub: 'لحظيًا' },
+};
 
 <Section id="context" title="السياق">
 {/* A:51697763 (context), A:9577edf2, A:0c92c89f */}
@@ -18,7 +60,9 @@ import Section from '../../../components/Section.astro';
 
 </Section>
 
-{/* PIPELINE SECTION (Task 3) */}
+<Section id="pipeline" title="مسار الرسالة">
+  <PipelineScrolly steps={steps} labels={pipelineLabels} dir="rtl" />
+</Section>
 
 <Section id="claim-check" title="لماذا claim check">
 {/* F:b9f5b694, F:14989da7, F:1de76cfa */}

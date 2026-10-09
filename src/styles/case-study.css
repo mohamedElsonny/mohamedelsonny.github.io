@@ -171,3 +171,185 @@ html[lang='ar'] .cs__title {
     padding-inline: 48px;
   }
 }
+
+/* ---------- Pipeline scrolly (spec §7.1) ---------- */
+
+/* Block, not grid, on mobile: a sticky grid item can only stick inside its own grid area. */
+.scrolly {
+  display: block;
+}
+
+.scrolly__stage {
+  position: sticky;
+  inset-block-start: var(--cs-bar);
+  z-index: 2;
+  height: 240px;
+  background: var(--bg);
+}
+
+.scrolly__stage svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scrolly__steps {
+  list-style: none;
+  margin: 0;
+  padding-block: 20vh 30vh;
+  padding-inline: 0;
+}
+
+.scrolly__step {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 62vh;
+}
+
+.scrolly__n {
+  margin-block-end: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--teal);
+}
+
+.scrolly__step h3 {
+  margin-block-end: 10px;
+  font-size: 1.3125rem;
+  font-weight: 600;
+  color: var(--ink);
+  transition: color 0.3s;
+}
+
+.scrolly__step p:not(.scrolly__n) {
+  font-size: 1rem;
+  line-height: 1.75;
+  transition: color 0.3s;
+}
+
+/* Dimming only after the script runs; colour, not opacity, so dimmed text keeps AA contrast. */
+.scrolly.is-live .scrolly__step:not(.is-on) h3,
+.scrolly.is-live .scrolly__step:not(.is-on) p,
+.scrolly.is-live .scrolly__step:not(.is-on) code {
+  color: var(--muted);
+}
+
+.scrolly__edge {
+  fill: none;
+  stroke: #243045;
+  stroke-width: 1.6;
+  transition: stroke 0.3s;
+}
+
+.scrolly__edge--dash {
+  stroke-dasharray: 4 4;
+}
+
+.scrolly__edge.is-on {
+  stroke: var(--teal);
+}
+
+.scrolly__node {
+  fill: #111a2e;
+  stroke: var(--line);
+  stroke-width: 1.2;
+  transition:
+    fill 0.3s,
+    stroke 0.3s;
+}
+
+.scrolly__node--dash {
+  stroke-dasharray: 4 3;
+}
+
+.scrolly__node.is-on {
+  fill: rgba(45, 212, 191, 0.08);
+  stroke: var(--teal);
+}
+
+.scrolly__label text {
+  fill: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  transition: fill 0.3s;
+}
+
+.scrolly__label .scrolly__sub {
+  fill: #526077;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+}
+
+.scrolly__label.is-on text {
+  fill: var(--ink);
+}
+
+.scrolly__label.is-on .scrolly__sub {
+  fill: var(--teal);
+}
+
+.scrolly__pkt {
+  fill: var(--teal);
+}
+
+.scrolly:not(.is-live) .scrolly__pkt {
+  display: none;
+}
+
+html[lang='ar'] .scrolly__label .scrolly__sub {
+  font-family: inherit;
+}
+
+/* Below 1024px the diagram is drawn at about half size: bigger names, no sub-labels. */
+@media (max-width: 1023.98px) {
+  .scrolly__label text {
+    font-size: 15px;
+  }
+
+  .scrolly__label .scrolly__sub {
+    display: none;
+  }
+
+  /* Names that sat above a sub-label move down to the box's middle. */
+  .scrolly__label:has(.scrolly__sub) text:first-child {
+    transform: translateY(5px);
+  }
+}
+
+/* Latin code inside Arabic text keeps its own direction. */
+html[dir='rtl'] .cs code {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+@media (min-width: 1024px) {
+  .scrolly {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 56px;
+  }
+
+  .scrolly__stage {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    inset-block-start: calc(50vh - 190px);
+    height: 380px;
+    margin-block-start: 20vh;
+    background: none;
+  }
+
+  .scrolly__steps {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrolly__pkt {
+    display: none;
+  }
+}

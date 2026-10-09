@@ -14,7 +14,7 @@ const PAGES = [
     description:
       "How I built Getridley's serverless seller inbox with SES, S3, SQS, Lambda, DynamoDB and WebSockets, and why large attachments never travel through the queue.",
     kicker: 'Case study · Real estate',
-    sections: ['Context', 'Why a claim check', 'What it cost', 'Reliability', 'Delivery'],
+    sections: ['Context', 'The pipeline', 'Why a claim check', 'What it cost', 'Reliability', 'Delivery'],
     current: 'EN',
     other: { text: 'عربي', href: AR_PATH },
     back: 'Mohamed Gamal',
@@ -29,7 +29,7 @@ const PAGES = [
     description:
       'كيف بنيت صندوق بريد البائعين في Getridley بـ SES وS3 وSQS وLambda وDynamoDB وWebSockets، ولماذا لا تمر المرفقات الكبيرة عبر الـ queue أبدًا.',
     kicker: 'دراسة حالة · عقارات',
-    sections: ['السياق', 'لماذا claim check', 'ماذا كلّف هذا التصميم', 'الاعتمادية', 'التسليم'],
+    sections: ['السياق', 'مسار الرسالة', 'لماذا claim check', 'ماذا كلّف هذا التصميم', 'الاعتمادية', 'التسليم'],
     current: 'عربي',
     other: { text: 'EN', href: EN_PATH },
     back: 'محمد جمال',

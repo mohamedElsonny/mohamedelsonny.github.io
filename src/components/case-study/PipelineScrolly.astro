@@ -1,0 +1,122 @@
+---
+import { EDGES, NODES, PACKET_PATH, VIEW_H, VIEW_W, labelX, type PipelineLabels } from './pipeline';
+
+interface Props {
+  /** Six steps in order. `body` is trusted HTML from the MDX file (it may contain <code>). */
+  steps: { title: string; body: string }[];
+  labels: PipelineLabels;
+  dir: 'ltr' | 'rtl';
+}
+
+const { steps, labels, dir } = Astro.props;
+const rtl = dir === 'rtl';
+const lit = (stepList: number[]) => stepList.join(' ');
+const pad = (n: number) => String(n).padStart(2, '0');
+---
+
+<div class="scrolly" data-scrolly>
+  <div class="scrolly__stage">
+    <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} aria-hidden="true" focusable="false">
+      <g transform={rtl ? `matrix(-1 0 0 1 ${VIEW_W} 0)` : undefined}>
+        {
+          EDGES.map((e) => (
+            <path
+              id={`ps-${e.id}`}
+              class:list={['scrolly__edge', { 'scrolly__edge--dash': e.dashed }]}
+              d={e.d}
+              data-s={lit(e.steps)}
+            />
+          ))
+        }
+        {
+          NODES.map((n) => (
+            <rect
+              class:list={['scrolly__node', { 'scrolly__node--dash': n.dashed }]}
+              data-node={n.id}
+              data-s={lit(n.steps)}
+              x={n.x}
+              y={n.y}
+              width={n.w}
+              height={n.h}
+              rx="8"
+            />
+          ))
+        }
+        <circle class="scrolly__pkt" r="4">
+          <animateMotion dur="1.4s" repeatCount="indefinite">
+            <mpath href={`#ps-${PACKET_PATH[0]}`} />
+          </animateMotion>
+        </circle>
+      </g>
+      {
+        NODES.map((n) => {
+          const label = labels[n.id];
+          const x = labelX(n, rtl);
+          return (
+            <g class="scrolly__label" data-label={n.id} data-s={lit(n.steps)}>
+              <text x={x} y={label.sub ? n.y + 17 : n.y + n.h / 2}>
+                {label.main}
+              </text>
+              {label.sub && (
+                <text class="scrolly__sub" x={x} y={n.y + 32}>
+                  {label.sub}
+                </text>
+              )}
+            </g>
+          );
+        })
+      }
+    </svg>
+  </div>
+  <ol class="scrolly__steps">
+    {
+      steps.map((step, i) => (
+        <li class="scrolly__step" data-step={i + 1} data-packet={`ps-${PACKET_PATH[i]}`}>
+          <p class="scrolly__n" aria-hidden="true">
+            <span dir="ltr">{pad(i + 1)} / {pad(steps.length)}</span>
+          </p>
+          <h3>{step.title}</h3>
+          <p set:html={step.body} />
+        </li>
+      ))
+    }
+  </ol>
+</div>
+
+<script>
+  // The active step is the last one whose top has passed the middle of the viewport (step 1 before that).
+  // Measured on every frame after a scroll, so jumps and scroll restoration land on the right step.
+  for (const root of document.querySelectorAll<HTMLElement>('[data-scrolly]')) {
+    const steps = [...root.querySelectorAll<HTMLElement>('.scrolly__step')];
+    const parts = [...root.querySelectorAll<SVGElement>('[data-s]')];
+    const mpath = root.querySelector('mpath');
+    let active = 0;
+    let frame = 0;
+
+    const activate = (n: number) => {
+      if (n === active) return;
+      active = n;
+      for (const step of steps) step.classList.toggle('is-on', step.dataset.step === String(n));
+      for (const part of parts) part.classList.toggle('is-on', (part.dataset.s ?? '').split(' ').includes(String(n)));
+      const packet = steps[n - 1]?.dataset.packet;
+      if (mpath && packet) mpath.setAttribute('href', `#${packet}`);
+    };
+
+    const sync = () => {
+      frame = 0;
+      const middle = window.innerHeight / 2;
+      let n = 1;
+      for (const step of steps) if (step.getBoundingClientRect().top <= middle) n = Number(step.dataset.step);
+      activate(n);
+    };
+
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(sync);
+    };
+
+    root.classList.add('is-live');
+    sync();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+  }
+</script>
