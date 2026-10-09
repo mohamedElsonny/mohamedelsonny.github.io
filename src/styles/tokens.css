@@ -1,0 +1,16 @@
+:root {
+  color-scheme: dark;
+  --bg: #0c1222;
+  --ink: #e6edf8;
+  --body: #94a3b8;
+  /* Spec value #64748b is 3.92:1 on --bg and fails WCAG AA; #7c8aa0 is 5.33:1. */
+  --muted: #7c8aa0;
+  --teal: #5eead4;
+  --tag-bg: rgba(45, 212, 191, 0.1);
+  --spot: rgba(56, 189, 248, 0.09);
+  --row-hover: rgba(30, 41, 59, 0.5);
+  --line: #334155;
+  --title-bg: rgba(12, 18, 34, 0.78);
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+}
