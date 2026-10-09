@@ -217,7 +217,7 @@ Below the list: **View full résumé →**, linking to `/resume.pdf`.
 
 ### Footer
 
-> Designed and built by me. Case studies and Arabic articles are coming.
+> Designed and built by me.
 
 ### Sources
 

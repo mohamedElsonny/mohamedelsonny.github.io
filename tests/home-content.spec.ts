@@ -76,6 +76,6 @@ test('résumé link downloads the PDF', async ({ page }) => {
 
 test('footer copy', async ({ page }) => {
   await expect(page.locator('footer.foot')).toHaveText(
-    'Designed and built by me. Case studies and Arabic articles are coming.',
+    'Designed and built by me.',
   );
 });
