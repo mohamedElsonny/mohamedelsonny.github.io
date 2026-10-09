@@ -1,0 +1,45 @@
+---
+interface Props {
+  items: { id: string; label: string }[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav class="nav" aria-label="Sections">
+  <ul>
+    {
+      items.map((item, index) => (
+        <li>
+          <a class="nav__link" href={`#${item.id}`} data-nav={item.id} aria-current={index === 0 ? 'true' : undefined}>
+            <span class="nav__line" aria-hidden="true" />
+            <span class="nav__label">{item.label}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<script>
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[data-nav]'));
+  const setActive = (id: string) => {
+    for (const link of links) {
+      if (link.dataset.nav === id) link.setAttribute('aria-current', 'true');
+      else link.removeAttribute('aria-current');
+    }
+  };
+  const sections = links
+    .map((link) => document.getElementById(link.dataset.nav ?? ''))
+    .filter((section): section is HTMLElement => section !== null);
+
+  // A section is current while it crosses a band 30%–40% down the viewport.
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) if (entry.isIntersecting) setActive(entry.target.id);
+    },
+    { rootMargin: '-30% 0px -60% 0px' },
+  );
+  sections.forEach((section) => observer.observe(section));
+  links.forEach((link) => link.addEventListener('click', () => setActive(link.dataset.nav ?? '')));
+</script>

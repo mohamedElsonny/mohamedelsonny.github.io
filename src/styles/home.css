@@ -187,3 +187,144 @@
 .social a:hover {
   color: var(--ink);
 }
+
+.nav {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .page {
+    display: grid;
+    grid-template-columns: 0.9fr 1.3fr;
+    gap: 64px;
+    padding-inline: 48px;
+  }
+
+  .intro {
+    position: sticky;
+    inset-block-start: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100vh;
+    padding-block: 96px 64px;
+  }
+
+  .nav {
+    display: block;
+    margin-block-start: 56px;
+  }
+
+  .nav ul {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding-block: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color 0.2s;
+  }
+
+  .nav__line {
+    width: 32px;
+    height: 1px;
+    background: var(--line);
+    transition:
+      width 0.25s,
+      background-color 0.25s;
+  }
+
+  .nav__link:hover,
+  .nav__link[aria-current='true'] {
+    color: var(--ink);
+  }
+
+  .nav__link:hover .nav__line,
+  .nav__link[aria-current='true'] .nav__line {
+    width: 64px;
+    background: var(--ink);
+  }
+
+  .social {
+    margin-block-start: 0;
+  }
+
+  .content {
+    padding-block: 96px 64px;
+  }
+
+  .section {
+    margin-block: 0 96px;
+    scroll-margin-block-start: 96px;
+  }
+
+  .section__title {
+    position: static;
+    margin-block: 0 16px;
+    margin-inline: 0;
+    padding: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 16px;
+    margin-inline: -16px;
+    padding: 16px;
+  }
+
+  .row__label {
+    margin-block-end: 0;
+    padding-block-start: 3px;
+  }
+
+  .more {
+    margin-block-start: 16px;
+  }
+}
+
+/* Hover dimming works on every row; title colour, arrow and focus only on linked rows (spec §5). */
+@media (min-width: 1024px) and (hover: hover) {
+  .rows:hover .row {
+    opacity: 0.45;
+  }
+
+  .rows .row:hover,
+  .rows .row--link:focus-within {
+    opacity: 1;
+    background: var(--row-hover);
+    box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
+  }
+
+  .rows:has(.row--link:focus-visible) .row {
+    opacity: 0.45;
+  }
+
+  .rows:has(.row--link:focus-visible) .row--link:focus-within {
+    opacity: 1;
+  }
+
+  .row--link:hover .row__title,
+  .row--link:focus-within .row__title,
+  .row--link:hover .row__arrow,
+  .row--link:focus-within .row__arrow {
+    color: var(--teal);
+  }
+
+  .row--link:hover .row__arrow,
+  .row--link:focus-within .row__arrow {
+    transform: translate(3px, -3px);
+  }
+}

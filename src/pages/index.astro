@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/Hero.astro';
+import Nav from '../components/Nav.astro';
 import Section from '../components/Section.astro';
 import About from '../components/About.astro';
 import Row from '../components/Row.astro';
@@ -9,6 +10,12 @@ import { profile } from '../content/profile';
 import { experience } from '../content/experience';
 import { projects } from '../content/projects';
 import '../styles/home.css';
+
+const sections = [
+  { id: 'about', label: 'About' },
+  { id: 'experience', label: 'Experience' },
+  { id: 'projects', label: 'Projects' },
+];
 ---
 
 <BaseLayout title={`${profile.name} · ${profile.title}`} description={profile.lead}>
@@ -16,6 +23,7 @@ import '../styles/home.css';
     <header class="intro">
       <div>
         <Hero name={profile.name} title={profile.title} lead={profile.lead} />
+        <Nav items={sections} />
       </div>
       <Social github={profile.links.github} linkedin={profile.links.linkedin} emailParts={profile.emailParts} />
     </header>
