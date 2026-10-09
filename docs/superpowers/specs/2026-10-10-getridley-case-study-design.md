@@ -84,7 +84,7 @@ Layout C, "scrollytelling", approved on the prototype (`.superpowers/brainstorm/
 
 Section titles use the same sticky, blurred style as Home's section titles. The spotlight from Home is used here too. Tokens, fonts and the tag style are the existing ones in `src/styles/tokens.css`.
 
-### Mobile (below 900px)
+### Mobile (below 1024px, the same breakpoint as Home)
 
 One column. The diagram sticks at the top (height 240px, page background behind it, under the section title) and the steps scroll under it. The explainer's SVG scales to the column width, and its scenario buttons wrap.
 
