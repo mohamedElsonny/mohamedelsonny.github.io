@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Spotlight from '../components/Spotlight.astro';
 import Hero from '../components/Hero.astro';
 import Nav from '../components/Nav.astro';
 import Section from '../components/Section.astro';
@@ -19,6 +20,7 @@ const sections = [
 ---
 
 <BaseLayout title={`${profile.name} · ${profile.title}`} description={profile.lead}>
+  <Spotlight />
   <div class="page">
     <header class="intro">
       <div>
