@@ -139,7 +139,7 @@ The approved mockups are `home-v1.html` (desktop) and `home-mobile-v1.html` (mob
 - WCAG AA contrast for all text.
 - A skip link to the main content.
 - Semantic HTML: `header`, `nav`, `main`, `section` with headings, `footer`, lists for rows.
-- Rows that are not links in v1 are not focusable and show no arrow. A row shows the arrow and gets hover and focus styles only when it links somewhere.
+- The hover dimming and highlight work on every row on desktop, linked or not. The ↗ arrow, the teal title and keyboard focus appear only on rows that link somewhere. In v1 no row links anywhere, so v1 rows show no arrow (unlike the mockups) and are not in the tab order.
 
 ## 6. Interactions and scripts
 
