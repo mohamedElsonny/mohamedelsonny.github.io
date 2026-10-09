@@ -167,3 +167,23 @@
   font-size: 0.8125rem;
   color: var(--muted);
 }
+
+.social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-block-start: 24px;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.social a {
+  display: inline-block;
+  padding-block: 4px;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.social a:hover {
+  color: var(--ink);
+}

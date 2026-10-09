@@ -4,6 +4,7 @@ import Hero from '../components/Hero.astro';
 import Section from '../components/Section.astro';
 import About from '../components/About.astro';
 import Row from '../components/Row.astro';
+import Social from '../components/Social.astro';
 import { profile } from '../content/profile';
 import { experience } from '../content/experience';
 import { projects } from '../content/projects';
@@ -16,6 +17,7 @@ import '../styles/home.css';
       <div>
         <Hero name={profile.name} title={profile.title} lead={profile.lead} />
       </div>
+      <Social github={profile.links.github} linkedin={profile.links.linkedin} emailParts={profile.emailParts} />
     </header>
     <div class="content">
       <main id="main" tabindex="-1">

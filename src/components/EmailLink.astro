@@ -1,0 +1,24 @@
+---
+interface Props {
+  user: string;
+  domain: string;
+  /** Where the link goes when JavaScript is off. */
+  fallback: string;
+}
+
+const { user, domain, fallback } = Astro.props;
+---
+
+<a class="email-link" href={fallback} data-email-user={user} data-email-domain={domain}>Email</a>
+
+<script>
+  // Join the address only on intent, so it never sits whole in the HTML.
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('a[data-email-user]')) {
+    const arm = () => {
+      link.href = `mailto:${link.dataset.emailUser}@${link.dataset.emailDomain}`;
+    };
+    link.addEventListener('pointerenter', arm, { once: true });
+    link.addEventListener('focus', arm, { once: true });
+    link.addEventListener('click', arm);
+  }
+</script>
