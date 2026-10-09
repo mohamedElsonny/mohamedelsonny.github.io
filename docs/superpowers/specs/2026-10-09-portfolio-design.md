@@ -14,7 +14,7 @@ A very professional personal portfolio for personal branding. It is the public h
 - It matches the approved desktop and mobile mockups (navy palette, spotlight, card hover).
 - Every claim on the page traces back to a verified fact in the Career Vault.
 - Lighthouse scores ≥ 95 in every category on mobile.
-- The email cannot be scraped from the HTML, and the phone number appears nowhere.
+- The email cannot be scraped from the site's pages, and the phone number appears on none of them. The downloadable CV (`/resume.pdf`) is a normal CV and keeps both.
 
 ## 2. Scope
 
@@ -161,7 +161,7 @@ All client JavaScript is small inline scripts, under 5KB total on the Home page:
 ### Rules
 
 - Only verified Career Vault facts (`usable_*` views) or statements the user made in this design conversation and that were then recorded in the vault as verified.
-- No phone number anywhere: not in the page, the JSON-LD, the PDF metadata, or the repo.
+- No phone number on the site: not in any page, the JSON-LD, the meta tags, or any source or text file. The only exception is `resume.pdf`, which is the normal CV and includes the phone and email.
 - Estimated figures say "estimated".
 - Ownership levels are respected: "led" and "owned" only where the vault says so.
 - No "open to work" banner.
@@ -228,7 +228,7 @@ Below the list: **View full résumé →**, linking to `/resume.pdf`.
 
 - The site does **not** read the vault database at build time. The vault is local and is not available in CI.
 - Content lives in typed TypeScript files in `src/content/`, with types for profile, experience rows and project rows. A typo or a missing field fails `astro check`.
-- **Résumé sync:** `scripts/sync-resume` runs `ai-cv-tailor/scripts/build_general_cv_pdf.py`, copies the output to `public/resume.pdf`, and the PDF is committed. It is run by hand whenever the CV changes. The sync script checks that the PDF text contains no phone number before copying it.
+- **Résumé sync:** `scripts/sync-resume` runs `ai-cv-tailor/scripts/build_general_cv_pdf.py`, copies the output unchanged to `public/resume.pdf`, and the PDF is committed. It is run by hand whenever the CV changes. The CV builder in ai-cv-tailor is not modified.
 
 ## 9. SEO and metadata
 
@@ -256,7 +256,7 @@ Below the list: **View full résumé →**, linking to `/resume.pdf`.
   - Projects appear in the order in §7.
   - Clicking a nav item scrolls to its section.
   - The full email address is not in the raw HTML, and clicking Email produces the correct `mailto:` link.
-  - The phone number does not appear anywhere in `dist/` (an explicit test that searches every built file, including the PDF text).
+  - The phone number and the whole email address do not appear in any built text file in `dist/` (HTML, XML, JS, CSS, JSON, SVG, TXT). `resume.pdf` is excluded on purpose.
   - `/resume.pdf` returns a PDF.
   - At mobile width the page is one column and the side nav is hidden.
   - The 404 page renders.
@@ -271,7 +271,7 @@ Below the list: **View full résumé →**, linking to `/resume.pdf`.
 ### Repo hygiene
 
 - `.superpowers/` is in `.gitignore`.
-- Nothing personal beyond what the site itself shows goes into the repo: no phone, no raw vault exports, no other CVs.
+- Nothing personal beyond what the site itself shows goes into the repo: no phone in any source or text file, no raw vault exports, no other CVs. The one exception is `public/resume.pdf`, the normal CV.
 
 ## 11. Future case studies (not v1)
 
