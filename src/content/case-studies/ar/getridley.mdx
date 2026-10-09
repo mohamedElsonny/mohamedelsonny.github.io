@@ -11,6 +11,7 @@ tags: ["AWS SES", "S3", "SQS", "Lambda", "DynamoDB", "WebSockets"]
 
 import Section from '../../../components/Section.astro';
 import PipelineScrolly from '../../../components/case-study/PipelineScrolly.astro';
+import ClaimCheckExplainer from '../../../components/case-study/ClaimCheckExplainer.astro';
 
 {/* Step sources: 1 A:51697763, A:9577edf2 · 2 F:e4e94791, F:df0de13e · 3 F:b9f5b694, F:1de76cfa · 4 F:1de76cfa, F:16f362d2 · 5 A:51697763, decision 31ae17de · 6 A:0c92c89f, F:fc706c71, F:95133f62 */}
 
@@ -53,6 +54,54 @@ export const pipelineLabels = {
   inbox: { main: 'صندوق البائع', sub: 'لحظيًا' },
 };
 
+{/* Caption sources: normal/large F:1de76cfa · queue-it decision 31ae17de alternatives, F:1d55d7d7 · fail F:16f362d2, A:15674748, F:9361e234 · dup F:c36a8ea8, F:5e83a966, F:71cb730b */}
+
+export const explainer = {
+  title: 'جرّب: ماذا يحدث عندما',
+  scenarios: [
+    {
+      id: 'normal',
+      label: 'سؤال قصير',
+      caption: 'يخزّن SES الرسالة الخام في S3 ويضع مرجعًا صغيرًا في الـ queue. تأخذ Lambda المرجع، وتقرأ الرسالة من S3، وتفتح محادثة المشتري والبائع في DynamoDB.',
+    },
+    {
+      id: 'large',
+      label: 'مرفق كبير',
+      caption: 'يذهب العقد والصور إلى S3 مع الرسالة الخام. أما رسالة الـ queue فهي المرجع الصغير نفسه، فلا يعرف الـ queue حجم البريد أصلًا، وأي retry لا ينقل سوى بضعة bytes.',
+    },
+    {
+      id: 'fail',
+      label: 'فشل التحليل',
+      caption: 'لا تستطيع Lambda تحليل الرسالة، فتعود إلى الـ queue ويُعاد تنفيذها. وبعد تكرار الفشل تنتقل إلى الـ dead-letter queue بدلًا من إعادة المحاولة إلى ما لا نهاية، ويرسل CloudWatch تنبيهًا بالبريد. والرسالة الأصلية ما زالت في S3، فيمكن معالجتها من جديد بعد الإصلاح.',
+    },
+    {
+      id: 'dup',
+      label: 'وصلت مرتين',
+      caption: 'الـ standard queue يسلّم الرسالة مرة واحدة على الأقل، فقد تصل الرسالة نفسها مرتين. الـ SES message ID هو مفتاح المحادثة، ويُكتب بـ conditional write: تُرفض الكتابة الثانية، ويرى البائع محادثة واحدة فقط.',
+    },
+  ],
+  alt: {
+    label: 'ماذا لو وُضع الملف في الـ queue؟',
+    caption: 'الفكرة الأولى الطبيعية هي تحويل الملف إلى Base64 ووضعه في رسالة الـ queue. لكن لرسائل SQS حدًّا أقصى للحجم قد يتجاوزه عقد مع مجموعة صور، وكل retry سينقل الملف كاملًا من جديد. وتقسيمه إلى أجزاء لا يحل المشكلة، بل يستبدل بها مشكلات الترتيب وإعادة التجميع والفشل الجزئي والتنظيف.',
+  },
+  svgLabels: {
+    receives: 'يستقبل',
+    rawMessage: 'الرسالة الخام',
+    reference: 'مرجع',
+    parse: 'تحليل',
+    conversation: 'محادثة',
+    files: 'عقد + صور',
+    overLimit: 'تجاوز الحد',
+    retryMoves: 'كل retry ينقل الملف كاملًا',
+    stillHere: 'ما زالت هنا ✓',
+    retry: 'retry',
+    emailAlert: 'تنبيه بالبريد',
+    oneConversation: 'محادثة واحدة',
+    rejected: 'رُفضت الكتابة الثانية ✕',
+    key: 'المفتاح: SES message ID',
+  },
+};
+
 <Section id="context" title="السياق">
 {/* A:51697763 (context), A:9577edf2, A:0c92c89f */}
 
@@ -69,7 +118,7 @@ export const pipelineLabels = {
 
 المشترون لا يرسلون أسئلة فقط، بل يرفقون عقود الملكية وصورًا عالية الدقة للعقار. وظيفة الـ queue تنسيق العمل وإعادة محاولته بأمان، لا نقل الملفات. لذلك يذهب الملف إلى S3، ولا يحمل الـ queue سوى "إيصال استلام": مرجع صغير لمكان تخزين الرسالة.
 
-{/* EXPLAINER (Task 4) */}
+<ClaimCheckExplainer {...explainer} dir="rtl" />
 
 </Section>
 

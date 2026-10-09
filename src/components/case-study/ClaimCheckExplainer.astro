@@ -1,0 +1,207 @@
+---
+type ScenarioId = 'normal' | 'large' | 'fail' | 'dup';
+
+export interface ExplainerLabels {
+  receives: string;
+  rawMessage: string;
+  reference: string;
+  parse: string;
+  conversation: string;
+  files: string;
+  overLimit: string;
+  retryMoves: string;
+  stillHere: string;
+  retry: string;
+  emailAlert: string;
+  oneConversation: string;
+  rejected: string;
+  key: string;
+}
+
+interface Props {
+  title: string;
+  scenarios: { id: ScenarioId; label: string; caption: string }[];
+  /** The "what if the file went in the queue" switch, shown only in the large scenario. */
+  alt: { label: string; caption: string };
+  svgLabels: ExplainerLabels;
+  dir: 'ltr' | 'rtl';
+}
+
+const { title, scenarios, alt, svgLabels: t, dir } = Astro.props;
+const W = 600;
+const rtl = dir === 'rtl';
+const tx = (x: number) => (rtl ? W - x : x);
+const mirror = rtl ? `matrix(-1 0 0 1 ${W} 0)` : undefined;
+// Captions in reading order; the switch caption follows "large".
+const captions = scenarios.flatMap((s) =>
+  s.id === 'large' ? [s, { id: 'queueit', label: alt.label, caption: alt.caption }] : [s],
+);
+---
+
+<div class="ex" data-ex data-mode="normal" data-alt="off">
+  <div class="ex__top">
+    <p class="ex__title" id="cc-title">{title}</p>
+    <div class="ex__btns" role="group" aria-labelledby="cc-title">
+      {
+        scenarios.map((s, i) => (
+          <button type="button" data-m={s.id} aria-pressed={i === 0 ? 'true' : 'false'}>
+            {s.label}
+          </button>
+        ))
+      }
+    </div>
+  </div>
+  <div class="ex__alt">
+    <button type="button" class="ex__switch" role="switch" aria-checked="false" aria-labelledby="cc-alt"></button>
+    <span id="cc-alt">{alt.label}</span>
+  </div>
+
+  <svg viewBox="0 0 600 236" aria-hidden="true" focusable="false">
+    <defs>
+      <path id="cc-s3" d="M100 104 C130 104 130 42 160 42"></path>
+      <path id="cc-q" d="M100 116 H160"></path>
+      <path id="cc-l" d="M260 122 H320"></path>
+      <path id="cc-read" d="M365 100 C365 58 300 42 260 42"></path>
+      <path id="cc-db" d="M410 122 H470"></path>
+      <path id="cc-dlq" d="M210 144 V182"></path>
+      <path id="cc-back" d="M345 144 C340 170 250 170 236 144"></path>
+      <path id="cc-cw" d="M260 200 H320"></path>
+    </defs>
+
+    <g transform={mirror}>
+      <use href="#cc-s3" class="ex__w"></use>
+      <use href="#cc-q" class="ex__w"></use>
+      <use href="#cc-l" class="ex__w"></use>
+      <use href="#cc-read" class="ex__w"></use>
+      <use href="#cc-db" class="ex__w"></use>
+      <use href="#cc-dlq" class="ex__w"></use>
+
+      <rect class="ex__n" data-node="ses" x="20" y="88" width="80" height="44" rx="8"></rect>
+      <rect class="ex__n" data-node="s3" x="160" y="20" width="100" height="44" rx="8"></rect>
+      <rect class="ex__n" data-node="sqs" x="160" y="100" width="100" height="44" rx="8"></rect>
+      <rect class="ex__n ex__n--dash" data-node="dlq" x="160" y="182" width="100" height="36" rx="8"></rect>
+      <rect class="ex__n" data-node="lambda" x="320" y="100" width="90" height="44" rx="8"></rect>
+      <rect class="ex__n" data-node="dynamodb" x="470" y="100" width="110" height="44" rx="8"></rect>
+
+      <g data-only="large queueit">
+        <rect class="ex__icon" x="270" y="20" width="16" height="20" rx="2"></rect>
+        <rect class="ex__icon" x="290" y="24" width="20" height="16" rx="2"></rect>
+        <rect class="ex__icon" x="314" y="24" width="20" height="16" rx="2"></rect>
+      </g>
+      <g data-only="queueit">
+        <rect class="ex__n ex__n--rose" x="160" y="100" width="100" height="44" rx="8"></rect>
+        <use href="#cc-back" class="ex__loop ex__loop--rose"></use>
+      </g>
+      <g data-only="fail">
+        <use href="#cc-back" class="ex__loop ex__loop--amber"></use>
+        <rect class="ex__outline--amber" x="320" y="100" width="90" height="44" rx="8"></rect>
+        <rect class="ex__n ex__n--amber ex__n--dash" x="160" y="182" width="100" height="36" rx="8"></rect>
+        <use href="#cc-cw" class="ex__w"></use>
+        <rect class="ex__n ex__n--cw" x="320" y="182" width="110" height="36" rx="8"></rect>
+      </g>
+
+      <g class="ex__pk" data-only="normal">
+        <circle class="ex__dot" r="4"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#cc-s3"></mpath></animateMotion></circle>
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#cc-q"></mpath></animateMotion></circle>
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.6s" begin="-1.1s" repeatCount="indefinite"><mpath href="#cc-l"></mpath></animateMotion></circle>
+        <circle class="ex__dot" r="4"><animateMotion dur="1.6s" begin="-0.8s" repeatCount="indefinite"><mpath href="#cc-read"></mpath></animateMotion></circle>
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.6s" begin="-0.5s" repeatCount="indefinite"><mpath href="#cc-db"></mpath></animateMotion></circle>
+      </g>
+      <g class="ex__pk" data-only="large">
+        <circle class="ex__dot" r="9" fill-opacity="0.85"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#cc-s3"></mpath></animateMotion></circle>
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#cc-q"></mpath></animateMotion></circle>
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.6s" begin="-1.1s" repeatCount="indefinite"><mpath href="#cc-l"></mpath></animateMotion></circle>
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.6s" begin="-0.5s" repeatCount="indefinite"><mpath href="#cc-db"></mpath></animateMotion></circle>
+      </g>
+      <g class="ex__pk" data-only="queueit">
+        <circle class="ex__dot ex__dot--rose" r="10" fill-opacity="0.85"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#cc-q"></mpath></animateMotion></circle>
+        <circle class="ex__dot ex__dot--rose" r="9" fill-opacity="0.6"><animateMotion dur="2.6s" begin="-1.6s" repeatCount="indefinite"><mpath href="#cc-back"></mpath></animateMotion></circle>
+      </g>
+      <g class="ex__pk" data-only="fail">
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#cc-q"></mpath></animateMotion></circle>
+        <circle class="ex__dot ex__dot--amber" r="3.5"><animateMotion dur="2.4s" repeatCount="indefinite" keyPoints="0;1;0" keyTimes="0;.5;1" calcMode="linear"><mpath href="#cc-l"></mpath></animateMotion></circle>
+        <circle class="ex__dot ex__dot--amber" r="3.5"><animateMotion dur="2.4s" begin="-1.2s" repeatCount="indefinite"><mpath href="#cc-back"></mpath></animateMotion></circle>
+        <circle class="ex__dot ex__dot--amber" r="3.5"><animateMotion dur="2.4s" begin="-1.8s" repeatCount="indefinite"><mpath href="#cc-dlq"></mpath></animateMotion></circle>
+        <circle class="ex__dot ex__dot--amber" r="3"><animateMotion dur="2.4s" begin="-1s" repeatCount="indefinite"><mpath href="#cc-cw"></mpath></animateMotion></circle>
+      </g>
+      <g class="ex__pk" data-only="dup">
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#cc-l"></mpath></animateMotion></circle>
+        <circle class="ex__dot" r="3.5"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#cc-db"></mpath></animateMotion></circle>
+        <circle class="ex__dot ex__dot--rose" r="3.5"><animateMotion dur="1.8s" begin="-1.2s" repeatCount="indefinite"><mpath href="#cc-l"></mpath></animateMotion></circle>
+        <circle class="ex__dot ex__dot--rose" r="3.5"><animateMotion dur="1.8s" begin="-1.2s" repeatCount="indefinite" keyPoints="0;.85;0" keyTimes="0;.6;1" calcMode="linear"><mpath href="#cc-db"></mpath></animateMotion></circle>
+      </g>
+    </g>
+
+    <g>
+      <text class="ex__label" x={tx(60)} y="104">SES</text>
+      <text class="ex__sub" x={tx(60)} y="119">{t.receives}</text>
+      <text class="ex__label" x={tx(210)} y="36">S3</text>
+      <text class="ex__sub" x={tx(210)} y="51">{t.rawMessage}</text>
+      <g class="ex__base-sqs">
+        <text class="ex__label" x={tx(210)} y="116">SQS</text>
+        <text class="ex__sub" x={tx(210)} y="131">{t.reference}</text>
+      </g>
+      <text class="ex__label ex__base-dlq" x={tx(210)} y="200">DLQ</text>
+      <text class="ex__label" x={tx(365)} y="116">Lambda</text>
+      <text class="ex__sub" x={tx(365)} y="131">{t.parse}</text>
+      <text class="ex__label" x={tx(525)} y="116">DynamoDB</text>
+      <text class="ex__sub" x={tx(525)} y="131">{t.conversation}</text>
+
+      <g data-only="large queueit">
+        <text class="ex__note ex__note--teal ex__pdf" x={tx(278)} y="33">PDF</text>
+        <text class="ex__note ex__note--teal" x={tx(300)} y="54">{t.files}</text>
+      </g>
+      <g data-only="queueit">
+        <text class="ex__label ex__label--rose" x={tx(210)} y="116">SQS</text>
+        <text class="ex__sub ex__sub--rose" x={tx(210)} y="131">{t.overLimit}</text>
+        <text class="ex__note ex__note--rose" x={tx(290)} y="178">{t.retryMoves}</text>
+      </g>
+      <g data-only="fail">
+        <text class="ex__note ex__note--amber" x={tx(292)} y="176">{t.retry}</text>
+        <text class="ex__label ex__label--amber" x={tx(210)} y="200">DLQ</text>
+        <text class="ex__label" x={tx(375)} y="196">CloudWatch</text>
+        <text class="ex__sub ex__sub--amber" x={tx(375)} y="209">{t.emailAlert}</text>
+        <text class="ex__note ex__note--teal" x={tx(210)} y="80">{t.stillHere}</text>
+      </g>
+      <g data-only="dup">
+        <text class="ex__note ex__note--teal" x={tx(525)} y="160">{t.oneConversation}</text>
+        <text class="ex__note ex__note--rose" x={tx(525)} y="176">{t.rejected}</text>
+        <text class="ex__note ex__note--muted" x={tx(440)} y="96">{t.key}</text>
+      </g>
+    </g>
+  </svg>
+
+  <div class="ex__caps" aria-live="polite">
+    {
+      captions.map((c) => (
+        <div class="ex__cap" data-cap={c.id}>
+          <h3 class="ex__cap-title">{c.label}</h3>
+          <p>{c.caption}</p>
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+<script>
+  for (const ex of document.querySelectorAll<HTMLElement>('[data-ex]')) {
+    const buttons = [...ex.querySelectorAll<HTMLButtonElement>('button[data-m]')];
+    const toggle = ex.querySelector<HTMLButtonElement>('[role="switch"]');
+
+    const setAlt = (on: boolean) => {
+      ex.dataset.alt = on ? 'on' : 'off';
+      toggle?.setAttribute('aria-checked', String(on));
+    };
+
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        ex.dataset.mode = button.dataset.m;
+        for (const other of buttons) other.setAttribute('aria-pressed', String(other === button));
+        if (button.dataset.m !== 'large') setAlt(false);
+      });
+    }
+
+    toggle?.addEventListener('click', () => setAlt(toggle.getAttribute('aria-checked') !== 'true'));
+    ex.classList.add('is-live');
+  }
+</script>

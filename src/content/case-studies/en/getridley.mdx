@@ -11,6 +11,7 @@ tags: ["AWS SES", "S3", "SQS", "Lambda", "DynamoDB", "WebSockets"]
 
 import Section from '../../../components/Section.astro';
 import PipelineScrolly from '../../../components/case-study/PipelineScrolly.astro';
+import ClaimCheckExplainer from '../../../components/case-study/ClaimCheckExplainer.astro';
 
 {/* Step sources: 1 A:51697763, A:9577edf2 · 2 F:e4e94791, F:df0de13e · 3 F:b9f5b694, F:1de76cfa · 4 F:1de76cfa, F:16f362d2 · 5 A:51697763, decision 31ae17de · 6 A:0c92c89f, F:fc706c71, F:95133f62 */}
 
@@ -53,6 +54,54 @@ export const pipelineLabels = {
   inbox: { main: 'Seller inbox', sub: 'real time' },
 };
 
+{/* Caption sources: normal/large F:1de76cfa · queue-it decision 31ae17de alternatives, F:1d55d7d7 · fail F:16f362d2, A:15674748, F:9361e234 · dup F:c36a8ea8, F:5e83a966, F:71cb730b */}
+
+export const explainer = {
+  title: 'Try it: what happens when',
+  scenarios: [
+    {
+      id: 'normal',
+      label: 'A short question',
+      caption: 'SES stores the raw message in S3 and puts a small reference on the queue. Lambda takes the reference, reads the message from S3, and opens the buyer–seller conversation in DynamoDB.',
+    },
+    {
+      id: 'large',
+      label: 'A large attachment',
+      caption: 'The contract and photos go into S3 with the raw message. The queue message is the same small reference as before, so the queue never sees how big the email was, and a retry only moves a few bytes.',
+    },
+    {
+      id: 'fail',
+      label: 'Parsing fails',
+      caption: 'Lambda can’t parse the message, so it goes back to the queue and is retried. After repeated failures, the dead-letter queue takes it instead of retrying forever, and CloudWatch sends an email alert. The original is still in S3, so it can be processed again after a fix.',
+    },
+    {
+      id: 'dup',
+      label: 'It arrives twice',
+      caption: 'A standard queue delivers at least once, so the same message can arrive twice. The SES message ID is the conversation’s key, written with a conditional write: the second write is rejected, and the seller still sees one conversation.',
+    },
+  ],
+  alt: {
+    label: 'What if the file went in the queue instead?',
+    caption: 'A natural first idea is to Base64 the file into the queue message. But SQS messages have a size limit that a contract plus a set of photos can exceed, and every retry would move the whole file again. Splitting it into chunks only trades that for ordering, reassembly, partial failures and cleanup.',
+  },
+  svgLabels: {
+    receives: 'receives',
+    rawMessage: 'raw message',
+    reference: 'reference',
+    parse: 'parse',
+    conversation: 'conversation',
+    files: 'contract + photos',
+    overLimit: 'over size limit',
+    retryMoves: 'every retry moves the whole file',
+    stillHere: 'still here ✓',
+    retry: 'retry',
+    emailAlert: 'email alert',
+    oneConversation: '1 conversation',
+    rejected: '2nd write rejected ✕',
+    key: 'key: SES message ID',
+  },
+};
+
 <Section id="context" title="Context">
 {/* A:51697763 (context), A:9577edf2, A:0c92c89f */}
 
@@ -69,7 +118,7 @@ Property listings on Getridley already had a "Contact seller" button. It emailed
 
 Buyers don't only send questions. They attach ownership contracts and high-resolution photos of the property. The queue is there to coordinate work and retry it safely, not to carry files. So the file goes to S3, and the queue only carries a claim ticket: a small reference to where the message is stored.
 
-{/* EXPLAINER (Task 4) */}
+<ClaimCheckExplainer {...explainer} dir="ltr" />
 
 </Section>
 

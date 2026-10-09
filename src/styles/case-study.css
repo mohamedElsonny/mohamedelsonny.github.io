@@ -353,3 +353,345 @@ html[dir='rtl'] .cs code {
     display: none;
   }
 }
+
+/* ---------- Claim-check explainer (spec §7.2) ---------- */
+
+.ex {
+  margin-block: 26px 30px;
+  padding-block: 18px 14px;
+  padding-inline: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.ex__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-block-end: 10px;
+}
+
+.ex__title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ex__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ex__btns button {
+  padding-block: 6px;
+  padding-inline: 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--body);
+  font-family: var(--font-mono);
+  font-size: 0.71875rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    background-color 0.2s;
+}
+
+.ex__btns button:hover {
+  border-color: #64748b;
+  color: var(--ink);
+}
+
+.ex__btns button[aria-pressed='true'] {
+  border-color: var(--teal);
+  color: var(--teal);
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.ex__alt {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-block-end: 6px;
+  font-size: 0.8125rem;
+}
+
+.ex.is-live[data-mode='large'] .ex__alt {
+  display: flex;
+}
+
+.ex__switch {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ex__switch::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-start: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition:
+    transform 0.2s,
+    background-color 0.2s;
+}
+
+.ex__switch[aria-checked='true'] {
+  border-color: #fb7185;
+}
+
+.ex__switch[aria-checked='true']::after {
+  transform: translateX(16px);
+  background: #fb7185;
+}
+
+html[dir='rtl'] .ex__switch[aria-checked='true']::after {
+  transform: translateX(-16px);
+}
+
+.ex svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-block: 6px;
+}
+
+.ex__w {
+  fill: none;
+  stroke: #334155;
+  stroke-width: 1.4;
+  stroke-dasharray: 3 4;
+}
+
+.ex__n {
+  fill: #111a2e;
+  stroke: var(--line);
+  stroke-width: 1.2;
+}
+
+.ex__n--dash {
+  stroke-dasharray: 4 3;
+}
+
+.ex__n--rose {
+  fill: #2a1520;
+  stroke: #fb7185;
+}
+
+.ex__n--amber {
+  fill: #2a1f0e;
+  stroke: #fbbf24;
+}
+
+.ex__n--cw {
+  stroke: #fbbf24;
+}
+
+.ex__outline--amber {
+  fill: none;
+  stroke: #fbbf24;
+}
+
+.ex__icon {
+  fill: none;
+  stroke: var(--teal);
+}
+
+.ex__loop {
+  fill: none;
+  stroke-dasharray: 2 3;
+}
+
+.ex__loop--rose {
+  stroke: #fb7185;
+  stroke-opacity: 0.5;
+}
+
+.ex__loop--amber {
+  stroke: #fbbf24;
+  stroke-opacity: 0.55;
+}
+
+.ex__dot {
+  fill: var(--teal);
+}
+
+.ex__dot--rose {
+  fill: #fb7185;
+}
+
+.ex__dot--amber {
+  fill: #fbbf24;
+}
+
+.ex__label,
+.ex__sub {
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.ex__label {
+  fill: #cbd5e1;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.ex__sub {
+  fill: #526077;
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.ex__note {
+  text-anchor: middle;
+  font-size: 9.5px;
+}
+
+.ex__pdf {
+  font-size: 7px;
+}
+
+.ex__note--teal {
+  fill: var(--teal);
+}
+
+.ex__note--rose,
+.ex__label--rose,
+.ex__sub--rose {
+  fill: #fb7185;
+}
+
+.ex__note--amber,
+.ex__label--amber,
+.ex__sub--amber {
+  fill: #fbbf24;
+}
+
+.ex__note--muted {
+  fill: var(--muted);
+}
+
+/* Scenario overlays: [data-only] lists the states an element belongs to. */
+.ex [data-only] {
+  display: none;
+}
+
+.ex[data-mode='normal'] [data-only~='normal'],
+.ex[data-mode='large'][data-alt='off'] [data-only~='large'],
+.ex[data-mode='large'][data-alt='on'] [data-only~='queueit'],
+.ex[data-mode='fail'] [data-only~='fail'],
+.ex[data-mode='dup'] [data-only~='dup'] {
+  display: inline;
+}
+
+/* The overlay labels replace these, so hide the originals underneath. */
+.ex[data-mode='large'][data-alt='on'] .ex__base-sqs,
+.ex[data-mode='fail'] .ex__base-dlq {
+  display: none;
+}
+
+.ex__caps {
+  margin-block-start: 10px;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.ex__cap + .ex__cap {
+  margin-block-start: 14px;
+}
+
+.ex__cap-title {
+  margin-block-end: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Without JavaScript: no controls, every caption listed under its heading. */
+.ex:not(.is-live) .ex__top {
+  display: none;
+}
+
+.ex.is-live .ex__caps {
+  min-height: 70px;
+}
+
+.ex.is-live .ex__cap,
+.ex.is-live .ex__cap-title {
+  display: none;
+}
+
+.ex.is-live[data-mode='normal'] .ex__cap[data-cap='normal'],
+.ex.is-live[data-mode='large'][data-alt='off'] .ex__cap[data-cap='large'],
+.ex.is-live[data-mode='large'][data-alt='on'] .ex__cap[data-cap='queueit'],
+.ex.is-live[data-mode='fail'] .ex__cap[data-cap='fail'],
+.ex.is-live[data-mode='dup'] .ex__cap[data-cap='dup'] {
+  display: block;
+}
+
+html[lang='ar'] .ex__title {
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+}
+
+html[lang='ar'] .ex__btns button {
+  font-family: inherit;
+  font-size: 0.8125rem;
+}
+
+html[lang='ar'] .ex__sub {
+  font-family: inherit;
+}
+
+/* Below 1024px the explainer is drawn at about half size: it spans the card's full width,
+   names and notes grow, and sub-labels give way to the caption underneath. */
+@media (max-width: 1023.98px) {
+  .ex svg {
+    width: calc(100% + 34px);
+    margin-inline: -17px;
+  }
+
+  .ex__label {
+    font-size: 16px;
+  }
+
+  .ex__sub {
+    display: none;
+  }
+
+  /* Names that sat above a sub-label move down to the box's middle. */
+  .ex__label:has(+ .ex__sub) {
+    transform: translateY(6px);
+  }
+
+  .ex__note {
+    font-size: 13px;
+  }
+
+  .ex__pdf {
+    font-size: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ex .ex__pk {
+    display: none !important;
+  }
+}
