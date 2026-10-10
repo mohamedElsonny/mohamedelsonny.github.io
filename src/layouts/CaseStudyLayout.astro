@@ -3,6 +3,7 @@ import BaseLayout from './BaseLayout.astro';
 import Spotlight from '../components/Spotlight.astro';
 import Tags from '../components/Tags.astro';
 import { profile } from '../content/profile';
+import type { NextCaseStudy } from '../content/case-study-order';
 import '../styles/case-study.css';
 
 interface Props {
@@ -13,15 +14,18 @@ interface Props {
   translationOf: string;
   label: string;
   tags: string[];
+  next?: NextCaseStudy;
 }
 
-const { title, description, lead, lang, translationOf, label, tags } = Astro.props;
+const { title, description, lead, lang, translationOf, label, tags, next } = Astro.props;
 
 const UI = {
   en: {
     name: 'Mohamed Gamal',
     arrow: '←',
+    forward: '→',
     kicker: 'Case study',
+    next: 'Next case study',
     languages: 'Language',
     tags: 'Technologies',
     foot: 'Designed and built by me.',
@@ -29,7 +33,9 @@ const UI = {
   ar: {
     name: 'محمد جمال',
     arrow: '→',
+    forward: '←',
     kicker: 'دراسة حالة',
+    next: 'دراسة الحالة التالية',
     languages: 'اللغة',
     tags: 'التقنيات',
     foot: 'صمّمتُه وبنيتُه بنفسي.',
@@ -93,6 +99,20 @@ const jsonLd = {
           <slot />
         </div>
       </article>
+      {
+        next && (
+          <nav class="cs__next" aria-label={ui.next}>
+            <a href={next.href}>
+              <span class="cs__next-kicker">
+                {ui.next} · {next.label}
+              </span>
+              <span class="cs__next-title">
+                {next.title} <span aria-hidden="true">{ui.forward}</span>
+              </span>
+            </a>
+          </nav>
+        )
+      }
     </main>
     <footer class="cs__foot">
       <p>{ui.foot}</p>

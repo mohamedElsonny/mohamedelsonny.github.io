@@ -1,20 +1,22 @@
 ---
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import CaseStudyLayout from '../../layouts/CaseStudyLayout.astro';
+import { nextCaseStudy, type NextCaseStudy } from '../../content/case-study-order';
 
 export async function getStaticPaths() {
   const entries = await getCollection('caseStudies', ({ data }) => data.lang === 'en');
-  return entries.map((entry) => ({ params: { slug: entry.data.translationOf }, props: { entry } }));
+  return entries.map((entry) => ({ params: { slug: entry.data.translationOf }, props: { entry, next: nextCaseStudy(entries, entry) } }));
 }
 
 interface Props {
   entry: CollectionEntry<'caseStudies'>;
+  next?: NextCaseStudy;
 }
 
-const { entry } = Astro.props;
+const { entry, next } = Astro.props;
 const { Content } = await render(entry);
 ---
 
-<CaseStudyLayout {...entry.data}>
+<CaseStudyLayout {...entry.data} next={next}>
   <Content />
 </CaseStudyLayout>

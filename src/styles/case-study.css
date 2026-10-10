@@ -138,6 +138,48 @@ html[lang='ar'] body {
   color: var(--ink);
 }
 
+/* Next case study: a card after the article. */
+.cs__next {
+  max-width: 45rem;
+  margin-block-start: 56px;
+}
+
+.cs__next a {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-block: 18px;
+  padding-inline: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  transition: border-color 0.2s;
+}
+
+.cs__next a:hover {
+  border-color: var(--teal);
+}
+
+.cs__next-kicker {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cs__next-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  transition: color 0.2s;
+}
+
+.cs__next a:hover .cs__next-title {
+  color: var(--teal);
+}
+
 .cs__foot {
   display: flex;
   flex-direction: column;
@@ -151,6 +193,7 @@ html[lang='ar'] body {
 
 /* Letter spacing breaks Arabic joining. */
 html[lang='ar'] .cs__kicker,
+html[lang='ar'] .cs__next-kicker,
 html[lang='ar'] .cs__title,
 html[lang='ar'] .cs .section__title {
   letter-spacing: 0;
@@ -719,7 +762,7 @@ html[lang='ar'] .ex__sub {
 }
 
 .takeaways {
-  margin-block: 16px 0;
+  margin-block: 16px;
   padding-inline-start: 24px;
 }
 

@@ -152,6 +152,25 @@ for (const p of PAGES) {
   });
 }
 
+const NEXT = [
+  { path: '/case-studies/mynt/', href: '/case-studies/getridley/', name: 'Next case study · Real estate A real-time inbox for property sellers' },
+  { path: '/case-studies/getridley/', href: '/case-studies/mynt/', name: 'Next case study · Web3 & NFTs Keeping scheduled ingestion alive when upstreams fail' },
+  { path: '/ar/case-studies/mynt/', href: '/ar/case-studies/getridley/', name: 'دراسة الحالة التالية · عقارات صندوق بريد لحظي لبائعي العقارات' },
+  { path: '/ar/case-studies/getridley/', href: '/ar/case-studies/mynt/', name: 'دراسة الحالة التالية · Web3 وNFTs جمع بيانات مجدول يصمد حين تتعطل المصادر' },
+];
+
+for (const n of NEXT) {
+  test(`links the next case study, wrapping at the end: ${n.path}`, async ({ page }) => {
+    await page.goto(n.path);
+    const link = page.locator('nav.cs__next a');
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveAttribute('href', n.href);
+    await expect(link).toHaveAccessibleName(n.name);
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`${n.href}$`));
+  });
+}
+
 for (const slug of ['getridley', 'mynt']) {
   const en = `/case-studies/${slug}/`;
   const ar = `/ar/case-studies/${slug}/`;
