@@ -44,7 +44,8 @@ test('projects appear in the spec order with their labels', async ({ page }) => 
   await expect(rows.locator('.row__title')).toHaveText([
     'Syft App',
     'Mynt.la',
-    'Getridley',
+    // The linked row's title also holds its decorative ↗ arrow (aria-hidden).
+    'Getridley↗',
     'Mozare3',
     'Yoga Digital Library',
     'Meenda.com',
@@ -63,9 +64,12 @@ test('projects appear in the spec order with their labels', async ({ page }) => 
   await expect(rows.nth(0).locator('.tag')).toHaveText(['NestJS', 'GraphQL', 'Stripe', 'Redis']);
 });
 
-test('v1 rows are not links and show no arrow', async ({ page }) => {
-  await expect(page.locator('.row a')).toHaveCount(0);
-  await expect(page.locator('.row__arrow')).toHaveCount(0);
+test('only the Getridley row links to its case study', async ({ page }) => {
+  const links = page.locator('.row a');
+  await expect(links).toHaveCount(1);
+  await expect(links).toHaveAttribute('href', '/case-studies/getridley/');
+  await expect(links).toContainText('Getridley');
+  await expect(page.locator('.row__arrow')).toHaveCount(1);
 });
 
 test('résumé link downloads the PDF', async ({ page }) => {

@@ -33,6 +33,7 @@ export const projects: ProjectItem[] = [
     summary:
       'A serverless Gmail-style inbox: SES → SQS → Lambda → DynamoDB, with real-time updates over WebSockets. Core scope delivered in 2 weeks of a 4-week deadline.',
     tags: ['AWS SES', 'AWS Lambda', 'DynamoDB', 'WebSockets'],
+    href: '/case-studies/getridley/',
   },
   {
     // experience 065591b1-aedd-5780-9710-4fc4132f79c0 (no projects row); AgriTech domain from profile summary.

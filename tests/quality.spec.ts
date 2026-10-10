@@ -1,5 +1,7 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+
+const CASE_STUDIES = ['/case-studies/getridley/', '/ar/case-studies/getridley/'];
 
 async function seriousViolations(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -8,10 +10,43 @@ async function seriousViolations(page: Page) {
     .map((v) => `${v.id} (${v.nodes.length}): ${v.help}`);
 }
 
+async function scriptBytes(page: Page, request: APIRequestContext) {
+  const inline = await page.$$eval('script:not([src]):not([type="application/ld+json"])', (scripts) =>
+    scripts.map((s) => s.textContent ?? '').join(''),
+  );
+  const sources = await page.$$eval('script[src]', (scripts) => scripts.map((s) => (s as HTMLScriptElement).src));
+  let total = Buffer.byteLength(inline);
+  for (const src of sources) total += (await (await request.get(src)).body()).length;
+  return total;
+}
+
+async function layoutShift(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        let total = 0;
+        new PerformanceObserver((list) => {
+          // LayoutShift is not in TypeScript's DOM lib yet, so describe the two fields used here.
+          for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) {
+            if (!entry.hadRecentInput) total += entry.value;
+          }
+        }).observe({ type: 'layout-shift', buffered: true });
+        setTimeout(() => resolve(total), 1000);
+      }),
+  );
+}
+
 test('axe: home on desktop', async ({ page }) => {
   await page.goto('/');
   expect(await seriousViolations(page)).toEqual([]);
 });
+
+for (const path of CASE_STUDIES) {
+  test(`axe: ${path} on desktop`, async ({ page }) => {
+    await page.goto(path);
+    expect(await seriousViolations(page)).toEqual([]);
+  });
+}
 
 test.describe('mobile', () => {
   test.use({ viewport: { width: 375, height: 812 } });
@@ -20,6 +55,25 @@ test.describe('mobile', () => {
     await page.goto('/');
     expect(await seriousViolations(page)).toEqual([]);
   });
+
+  for (const path of CASE_STUDIES) {
+    test(`axe: ${path} on mobile`, async ({ page }) => {
+      await page.goto(path);
+      expect(await seriousViolations(page)).toEqual([]);
+    });
+
+    test(`no horizontal overflow at 375px: ${path}`, async ({ page }) => {
+      await page.goto(path);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+      const panel = (await page.locator('[data-ex]').boundingBox())!;
+      const svg = (await page.locator('[data-ex] svg').boundingBox())!;
+      expect(svg.width).toBeLessThanOrEqual(panel.width);
+      const buttons = page.locator('[data-ex] .ex__btns');
+      const box = (await buttons.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width);
+    });
+  }
 });
 
 test('axe: 404 page', async ({ page }) => {
@@ -28,7 +82,7 @@ test('axe: 404 page', async ({ page }) => {
 });
 
 test('internal links resolve and external links are well-formed https', async ({ page, request }) => {
-  for (const path of ['/', '/does-not-exist']) {
+  for (const path of ['/', '/does-not-exist', ...CASE_STUDIES]) {
     await page.goto(path);
     const hrefs = await page.$$eval('a[href]', (links) => links.map((a) => a.getAttribute('href') ?? ''));
     expect(hrefs.length).toBeGreaterThan(0);
@@ -48,29 +102,19 @@ test('internal links resolve and external links are well-formed https', async ({
 
 test('home ships under 5KB of JavaScript', async ({ page, request }) => {
   await page.goto('/');
-  const inline = await page.$$eval('script:not([src]):not([type="application/ld+json"])', (scripts) =>
-    scripts.map((s) => s.textContent ?? '').join(''),
-  );
-  const sources = await page.$$eval('script[src]', (scripts) => scripts.map((s) => (s as HTMLScriptElement).src));
-  let total = Buffer.byteLength(inline);
-  for (const src of sources) total += (await (await request.get(src)).body()).length;
-  expect(total).toBeLessThan(5120);
+  expect(await scriptBytes(page, request)).toBeLessThan(5120);
 });
 
-test('no layout shift on load', async ({ page }) => {
-  await page.goto('/');
-  const cls = await page.evaluate(
-    () =>
-      new Promise<number>((resolve) => {
-        let total = 0;
-        new PerformanceObserver((list) => {
-          // LayoutShift is not in TypeScript's DOM lib yet, so describe the two fields used here.
-          for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) {
-            if (!entry.hadRecentInput) total += entry.value;
-          }
-        }).observe({ type: 'layout-shift', buffered: true });
-        setTimeout(() => resolve(total), 1000);
-      }),
-  );
-  expect(cls).toBeLessThan(0.02);
-});
+for (const path of CASE_STUDIES) {
+  test(`${path} ships under 8KB of JavaScript`, async ({ page, request }) => {
+    await page.goto(path);
+    expect(await scriptBytes(page, request)).toBeLessThan(8192);
+  });
+}
+
+for (const path of ['/', ...CASE_STUDIES]) {
+  test(`no layout shift on load: ${path}`, async ({ page }) => {
+    await page.goto(path);
+    expect(await layoutShift(page)).toBeLessThan(0.02);
+  });
+}

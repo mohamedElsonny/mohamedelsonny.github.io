@@ -2,7 +2,11 @@
   "ci": {
     "collect": {
       "staticDistDir": "./dist",
-      "url": ["http://localhost/index.html"],
+      "url": [
+        "http://localhost/index.html",
+        "http://localhost/case-studies/getridley/index.html",
+        "http://localhost/ar/case-studies/getridley/index.html"
+      ],
       "numberOfRuns": 3
     },
     "assert": {

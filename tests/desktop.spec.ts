@@ -93,9 +93,17 @@ test('keyboard: Enter on a nav item scrolls to its section', async ({ page }) =>
   await expect(page.locator('#experience-title')).toBeInViewport();
 });
 
-test('rows are not in the tab order in v1', async ({ page }) => {
+test('only the Getridley row is in the tab order', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.row a, .row [tabindex]')).toHaveCount(0);
+  await expect(page.locator('.row a')).toHaveCount(1);
+  await expect(page.locator('.row [tabindex]')).toHaveCount(0);
+});
+
+test('the linked Getridley row turns teal on hover', async ({ page }) => {
+  await page.goto('/');
+  const row = page.locator('#projects .row--link');
+  await row.hover();
+  await expect(row.locator('.row__title')).toHaveCSS('color', 'rgb(94, 234, 212)');
 });
 
 test('dir="rtl" mirrors the columns without extra CSS', async ({ page }) => {
