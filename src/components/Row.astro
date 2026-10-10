@@ -35,5 +35,7 @@ const { label, title, subtitle, summary, tags, href } = Astro.props;
     </h3>
     <p class="row__summary">{summary}</p>
     <Tags items={tags} />
+    {/* The whole row is the link (.row__link::after); this line only makes that visible. */}
+    {href && <p class="row__cta" aria-hidden="true">Read the case study <span class="row__cta-arrow">→</span></p>}
   </div>
 </li>

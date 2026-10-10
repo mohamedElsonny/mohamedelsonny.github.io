@@ -72,6 +72,15 @@ test('only the Getridley row links to its case study', async ({ page }) => {
   await expect(page.locator('.row__arrow')).toHaveCount(1);
 });
 
+test('the Getridley row shows a visible case-study call to action', async ({ page }) => {
+  const cta = page.locator('#projects .row--link .row__cta');
+  await expect(cta).toHaveCount(1);
+  await expect(cta).toBeVisible();
+  await expect(cta).toHaveText('Read the case study →');
+  await expect(cta).toHaveCSS('color', 'rgb(94, 234, 212)');
+  await expect(page.locator('.row__cta')).toHaveCount(1);
+});
+
 test('résumé link downloads the PDF', async ({ page }) => {
   const link = page.getByRole('link', { name: /View full résumé/ });
   await expect(link).toHaveAttribute('href', '/resume.pdf');

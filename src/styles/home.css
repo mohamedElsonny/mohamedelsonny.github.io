@@ -131,6 +131,32 @@
   line-height: 1.6;
 }
 
+.row__cta {
+  margin-block-start: 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--teal);
+}
+
+.row__cta-arrow {
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.row--link:hover .row__cta-arrow,
+.row--link:focus-within .row__cta-arrow {
+  transform: translateX(4px);
+}
+
+[dir='rtl'] .row__cta-arrow {
+  transform: scaleX(-1);
+}
+
+[dir='rtl'] .row--link:hover .row__cta-arrow,
+[dir='rtl'] .row--link:focus-within .row__cta-arrow {
+  transform: scaleX(-1) translateX(4px);
+}
+
 .more {
   display: inline-block;
   margin-block-start: 14px;
