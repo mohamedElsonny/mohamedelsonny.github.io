@@ -1,0 +1,222 @@
+---
+import {
+  BASE_STATE,
+  BELL_AT,
+  CHIPS,
+  DB_BAR,
+  DB_BAR_X,
+  EDGES,
+  NODES,
+  NOTE_AT,
+  PARKING_SLOT_X,
+  PARKING_SLOT_Y,
+  QUEUE_SLOT_X,
+  QUEUE_SLOT_Y,
+  SLOT_R,
+  labelY,
+  mx,
+  stateData,
+  type DiagramLabels,
+  type NodeId,
+  type Stage,
+} from './ingestion';
+
+interface Props {
+  stage: Stage | 'all';
+  uid: string;
+  labels: DiagramLabels;
+  dir: 'ltr' | 'rtl';
+}
+
+const { stage, uid, labels, dir } = Astro.props;
+const rtl = dir === 'rtl';
+const all = stage === 'all';
+
+/** With a number `stage`, only pieces that first appear up to that stage are rendered. */
+const shown = (from: Stage) => all || from <= stage;
+
+/** `is-new` marks the pieces of the shown stage; `is-off` (in `'all'` mode) parks the later ones. */
+const stageClass = (from: Stage) =>
+  all ? (from > 0 ? { 'is-off': true } : { 'is-new': true }) : from === stage ? { 'is-new': true } : {};
+
+const notes: Partial<Record<NodeId, { note: 'crashed' | 'down'; from: Stage }>> = {
+  providers: { note: 'down', from: 0 },
+  cron: { note: 'crashed', from: 1 },
+  consumer: { note: 'crashed', from: 1 },
+};
+const noteText = { crashed: labels.crashed, down: labels.down, lost: labels.lost, stale: labels.stale };
+
+const chipX = (x: number, w: number) => mx(x + w / 2, rtl);
+const chipY = (y: number, h: number) => y + h / 2;
+const bellPath =
+  `M${BELL_AT.x} ${BELL_AT.y + 9} v-3 a6 6 0 0 1 12 0 v3 z ` +
+  `M${BELL_AT.x + 4.6} ${BELL_AT.y + 10} a1.4 1.4 0 1 0 2.8 0 a1.4 1.4 0 1 0 -2.8 0 z`;
+---
+
+<svg
+  class="dg"
+  viewBox="0 0 680 320"
+  aria-hidden="true"
+  focusable="false"
+  data-uid={uid}
+  data-stage={all ? 0 : stage}
+  {...stateData(BASE_STATE)}
+>
+  <g class="dg-shapes" transform={rtl ? 'matrix(-1 0 0 1 680 0)' : undefined}>
+    {
+      EDGES.filter((e) => shown(e.stage)).map((e) => (
+        <path
+          class:list={['dg-edge', { 'dg-edge--dash': e.dashed }, stageClass(e.stage)]}
+          id={`dg-${uid}-${e.id}`}
+          data-edge={e.id}
+          data-from={e.stage}
+          data-naive-keep={e.naive ? '' : undefined}
+          d={e.d}
+        />
+      ))
+    }
+    {
+      NODES.filter((n) => shown(n.stage)).map((n) => (
+        <rect
+          class:list={['dg-node', { 'dg-node--dash': n.dashed }, stageClass(n.stage)]}
+          data-node={n.id}
+          data-from={n.stage}
+          data-naive-keep={n.id === 'providers' || n.id === 'db' || n.id === 'cron' ? '' : undefined}
+          x={n.x}
+          y={n.y}
+          width={n.w}
+          height={n.h}
+          rx="8"
+        />
+      ))
+    }
+    {
+      shown(1) && (
+        <g class:list={['dg-qslots', stageClass(1)]} data-from={1}>
+          {QUEUE_SLOT_X.map((x) => <circle class="dg-qslot" cx={x} cy={QUEUE_SLOT_Y} r={SLOT_R} />)}
+        </g>
+      )
+    }
+    {
+      shown(5) && (
+        <g class:list={['dg-pslots', stageClass(5)]} data-from={5}>
+          {PARKING_SLOT_X.map((x) => <circle class="dg-pslot" cx={x} cy={PARKING_SLOT_Y} r={SLOT_R} />)}
+        </g>
+      )
+    }
+    {
+      shown(0) && (
+        <g class:list={['dg-bars', stageClass(0)]} data-from={0} data-naive-keep="">
+          {DB_BAR_X.map((x) => (
+            <rect class="dg-bar" x={x} y={DB_BAR.y} width={DB_BAR.w} height={DB_BAR.h} rx="1" />
+          ))}
+        </g>
+      )
+    }
+    {shown(5) && <path class:list={['dg-bell', stageClass(5)]} data-from={5} d={bellPath} />}
+    {
+      CHIPS.filter((c) => shown(c.stage)).map((c) => (
+        <rect
+          class:list={['dg-chip', stageClass(c.stage)]}
+          data-chip={c.id}
+          data-from={c.stage}
+          x={c.x}
+          y={c.y}
+          width={c.w}
+          height={c.h}
+          rx="9"
+        />
+      ))
+    }
+    <circle class:list={['dg-dot', stageClass(0)]} data-from={0} data-naive-keep="" r="5" cx="0" cy="0">
+      <animateMotion begin="indefinite" dur="0.7s" fill="freeze" calcMode="linear" keyPoints="0;1" keyTimes="0;1">
+        <mpath href={`#dg-${uid}-qCon`} />
+      </animateMotion>
+    </circle>
+  </g>
+
+  {
+    NODES.filter((n) => shown(n.stage)).map((n) => {
+      const label = labels.nodes[n.id];
+      const note = notes[n.id];
+      const x = mx(n.x + n.w / 2, rtl);
+      return (
+        <g
+          class:list={['dg-label', stageClass(n.stage)]}
+          data-label={n.id}
+          data-from={n.stage}
+          data-naive-keep={n.id === 'providers' || n.id === 'db' || n.id === 'cron' ? '' : undefined}
+          style={`--shift: ${n.h / 2 - 17}`}
+        >
+          <text class="dg-main" x={x} y={labelY(n, Boolean(label.sub))}>{label.main}</text>
+          {label.sub && <text class="dg-sub" x={x} y={n.y + 32}>{label.sub}</text>}
+          {note && (
+            <text class="dg-note" data-note={note.note} data-from={note.from} x={x} y={n.y + 32}>
+              {noteText[note.note]}
+            </text>
+          )}
+        </g>
+      );
+    })
+  }
+
+  {
+    shown(1) && (
+      <text
+        class:list={['dg-note', stageClass(1)]}
+        data-note="lost"
+        data-from={1}
+        data-naive-keep=""
+        x={mx(NOTE_AT.lost.x, rtl)}
+        y={NOTE_AT.lost.y}
+      >
+        {labels.lost}
+      </text>
+    )
+  }
+  {
+    shown(0) && (
+      <text
+        class:list={['dg-note', stageClass(0)]}
+        data-note="stale"
+        data-from={0}
+        x={mx(NOTE_AT.stale.x, rtl)}
+        y={NOTE_AT.stale.y}
+      >
+        {labels.stale}
+      </text>
+    )
+  }
+  {
+    shown(2) && (
+      <text class:list={['dg-ack', stageClass(2)]} data-from={2} x={mx(NOTE_AT.ack.x, rtl)} y={NOTE_AT.ack.y}>
+        {labels.ack}
+      </text>
+    )
+  }
+
+  {
+    CHIPS.filter((c) => shown(c.stage)).map((c) => (
+      <g class:list={['dg-chiptext', stageClass(c.stage)]} data-chip-text={c.id} data-from={c.stage}>
+        {c.id === 'prefetch' && (
+          <text data-prefix={labels.prefetch} x={chipX(c.x, c.w)} y={chipY(c.y, c.h)}>
+            {`${labels.prefetch} 3`}
+          </text>
+        )}
+        {c.id === 'dedup' &&
+          (['on', 'off', 'hit'] as const).map((v) => (
+            <text data-v={v} x={chipX(c.x, c.w)} y={chipY(c.y, c.h)}>
+              {labels.dedup[v]}
+            </text>
+          ))}
+        {c.id === 'breaker' &&
+          (['closed', 'open', 'half-open', 'off'] as const).map((v) => (
+            <text data-v={v} x={chipX(c.x, c.w)} y={chipY(c.y, c.h)}>
+              {labels.breaker[v]}
+            </text>
+          ))}
+      </g>
+    ))
+  }
+</svg>
+<p class="dg__caption">{labels.caption}</p>

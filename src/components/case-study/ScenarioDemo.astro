@@ -1,0 +1,88 @@
+---
+import { SCENARIOS, stateAttr, type ScenarioId } from './ingestion';
+
+interface Button {
+  label: string;
+  run: ScenarioId;
+  alt?: ScenarioId;
+}
+
+interface Run {
+  id: ScenarioId;
+  heading: string;
+  steps: string[];
+}
+
+interface Props {
+  chapter: string;
+  title: string;
+  note: string;
+  idle: string;
+  buttons: Button[];
+  toggle?: { label: string };
+  runs: Run[];
+}
+
+const { chapter, title, note, idle, buttons, toggle, runs } = Astro.props;
+const byId = new Map(runs.map((run) => [run.id, run]));
+
+// A copy edit can't silently desync a log from its script.
+for (const run of runs) {
+  const script = SCENARIOS[run.id];
+  if (run.steps.length !== script.steps.length) {
+    throw new Error(`ScenarioDemo: ${run.id} has ${run.steps.length} log lines, the script has ${script.steps.length} steps`);
+  }
+}
+for (const button of buttons) {
+  for (const id of button.alt ? [button.run, button.alt] : [button.run]) {
+    if (!byId.has(id)) throw new Error(`ScenarioDemo: button runs ${id}, which has no log`);
+  }
+}
+
+const titleId = `scn-${chapter}-title`;
+const altId = `scn-${chapter}-alt`;
+const runId = (id: ScenarioId) => `scn-${chapter}-${id}`;
+---
+
+<div class="scn" data-demo data-state="idle">
+  <p class="scn__title" id={titleId}>{title}</p>
+  <p class="scn__note">{note}</p>
+  <div class="scn__btns" role="group" aria-labelledby={titleId}>
+    {
+      buttons.map((button) => (
+        <button type="button" data-run={button.run} data-alt={button.alt} aria-pressed="false">
+          {button.label}
+        </button>
+      ))
+    }
+  </div>
+  {
+    toggle && (
+      <div class="scn__alt">
+        <button type="button" role="switch" aria-checked="false" aria-labelledby={altId} />
+        <span id={altId}>{toggle.label}</span>
+      </div>
+    )
+  }
+  <p class="scn__idle">{idle}</p>
+  <div class="scn__runs">
+    {
+      runs.map((run) => (
+        <div class="scn__run" role="group" data-scn={run.id} data-initial={stateAttr(SCENARIOS[run.id].initial)} aria-labelledby={runId(run.id)}>
+          <h3 class="scn__run-title" id={runId(run.id)}>{run.heading}</h3>
+          <ol class="scn__steps">
+            {run.steps.map((line, i) => {
+              const step = SCENARIOS[run.id].steps[i];
+              return (
+                <li data-move={step.move?.join(' ')} data-pre={stateAttr(step.pre ?? {})} data-set={stateAttr(step.set ?? {})} data-tone={step.tone ?? 'teal'}>
+                  {line}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      ))
+    }
+  </div>
+  <p class="cs-sr" aria-live="polite" data-live />
+</div>

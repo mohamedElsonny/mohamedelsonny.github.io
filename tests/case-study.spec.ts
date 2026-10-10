@@ -1,37 +1,79 @@
 import { test, expect } from '@playwright/test';
 
 const SITE = 'https://mohamedelsonny.github.io';
-const EN_PATH = '/case-studies/getridley/';
-const AR_PATH = '/ar/case-studies/getridley/';
 
 const PAGES = [
   {
+    slug: 'getridley',
     lang: 'en',
     dir: 'ltr',
-    path: EN_PATH,
+    path: '/case-studies/getridley/',
     title: 'A real-time inbox for property sellers · Mohamed Gamal',
     h1: 'A real-time inbox for property sellers',
     description:
       "How I built Getridley's serverless seller inbox with SES, S3, SQS, Lambda, DynamoDB and WebSockets, and why large attachments never travel through the queue.",
     kicker: 'Case study · Real estate',
+    tags: ['AWS SES', 'S3', 'SQS', 'Lambda', 'DynamoDB', 'WebSockets'],
     sections: ['Context', 'The pipeline', 'Why a claim check', 'What it cost', 'Reliability', 'Delivery'],
     current: 'EN',
-    other: { text: 'عربي', href: AR_PATH },
+    other: { text: 'عربي', href: '/ar/case-studies/getridley/' },
     back: 'Mohamed Gamal',
     foot: 'Designed and built by me.',
   },
   {
+    slug: 'getridley',
     lang: 'ar',
     dir: 'rtl',
-    path: AR_PATH,
+    path: '/ar/case-studies/getridley/',
     title: 'صندوق بريد لحظي لبائعي العقارات · محمد جمال',
     h1: 'صندوق بريد لحظي لبائعي العقارات',
     description:
       'كيف بنيت صندوق بريد البائعين في Getridley بـ SES وS3 وSQS وLambda وDynamoDB وWebSockets، ولماذا لا تمر المرفقات الكبيرة عبر الـ queue أبدًا.',
     kicker: 'دراسة حالة · عقارات',
+    tags: ['AWS SES', 'S3', 'SQS', 'Lambda', 'DynamoDB', 'WebSockets'],
     sections: ['السياق', 'مسار الرسالة', 'لماذا claim check', 'ماذا كلّف هذا التصميم', 'الاعتمادية', 'التسليم'],
     current: 'عربي',
-    other: { text: 'EN', href: EN_PATH },
+    other: { text: 'EN', href: '/case-studies/getridley/' },
+    back: 'محمد جمال',
+    foot: 'صمّمتُه وبنيتُه بنفسي.',
+  },
+  {
+    slug: 'mynt',
+    lang: 'en',
+    dir: 'ltr',
+    path: '/case-studies/mynt/',
+    title: 'Keeping scheduled ingestion alive when upstreams fail · Mohamed Gamal',
+    h1: 'Keeping scheduled ingestion alive when upstreams fail',
+    description:
+      "Mynt's scheduled ingestion from 5+ blockchains and 3+ APIs, one problem at a time: RabbitMQ, acks after the write, jittered retries, idempotent consumers, a parking-lot DLQ, circuit breakers and backpressure, and what each fix cost.",
+    kicker: 'Case study · Web3 & NFTs',
+    tags: ['RabbitMQ', 'Cron', 'Retries', 'Dead-letter queue', 'Circuit Breaker', 'Idempotency'],
+    sections: [
+      'The setup', 'The naive cron', 'Ack at the right time', 'Retries', 'What actually went wrong',
+      'Poison messages', 'The provider that is down', 'Backpressure', 'Takeaways',
+    ],
+    current: 'EN',
+    other: { text: 'عربي', href: '/ar/case-studies/mynt/' },
+    back: 'Mohamed Gamal',
+    foot: 'Designed and built by me.',
+  },
+  {
+    slug: 'mynt',
+    lang: 'ar',
+    dir: 'rtl',
+    path: '/ar/case-studies/mynt/',
+    title: 'جمع بيانات مجدول يصمد حين تتعطل المصادر · محمد جمال',
+    h1: 'جمع بيانات مجدول يصمد حين تتعطل المصادر',
+    description:
+      'جمع Mynt المجدول للبيانات من خمس شبكات blockchain أو أكثر وثلاث APIs أو أكثر، مشكلةً بعد مشكلة: RabbitMQ، والـ ack بعد الكتابة، وretries مع jitter، وconsumers من نوع idempotent، وparking-lot DLQ، وcircuit breakers، وbackpressure، وثمن كل حل.',
+    kicker: 'دراسة حالة · Web3 وNFTs',
+    tags: ['RabbitMQ', 'Cron', 'Retries', 'Dead-letter queue', 'Circuit Breaker', 'Idempotency'],
+    sections: [
+      'السياق', 'الـ cron الساذج', 'الـ ack في الوقت الصحيح', 'الـ retries', 'ما الذي حدث خطأً فعلًا',
+      'رسائل poison', 'المصدر المتوقف', 'الـ backpressure', 'الخلاصة',
+    ],
+    current: 'عربي',
+    other: { text: 'EN', href: '/case-studies/mynt/' },
     back: 'محمد جمال',
     foot: 'صمّمتُه وبنيتُه بنفسي.',
   },
@@ -48,7 +90,7 @@ for (const p of PAGES) {
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(p.h1);
       await expect(page.locator('.cs__kicker')).toHaveText(p.kicker);
       await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', p.description);
-      await expect(page.locator('.cs__head .tag')).toHaveText(['AWS SES', 'S3', 'SQS', 'Lambda', 'DynamoDB', 'WebSockets']);
+      await expect(page.locator('.cs__head .tag')).toHaveText(p.tags);
       await expect(page.locator('.cs .section__title')).toHaveText(p.sections);
     });
 
@@ -58,11 +100,9 @@ for (const p of PAGES) {
       const alternates = await page.$$eval('link[rel="alternate"][hreflang]', (links) =>
         links.map((l) => [l.getAttribute('hreflang'), l.getAttribute('href')]),
       );
-      expect(alternates).toEqual([
-        ['en', `${SITE}${EN_PATH}`],
-        ['ar', `${SITE}${AR_PATH}`],
-        ['x-default', `${SITE}${EN_PATH}`],
-      ]);
+      const en = `${SITE}/case-studies/${p.slug}/`;
+      const ar = `${SITE}/ar/case-studies/${p.slug}/`;
+      expect(alternates).toEqual([['en', en], ['ar', ar], ['x-default', en]]);
     });
 
     test('JSON-LD TechArticle without email or phone', async ({ page }) => {
@@ -112,25 +152,30 @@ for (const p of PAGES) {
   });
 }
 
-test('the Arabic page loads Readex Pro and the English page does not', async ({ page }) => {
-  const fonts: string[] = [];
-  page.on('request', (req) => {
-    if (req.url().includes('readex-pro')) fonts.push(req.url());
+for (const slug of ['getridley', 'mynt']) {
+  const en = `/case-studies/${slug}/`;
+  const ar = `/ar/case-studies/${slug}/`;
+
+  test(`${slug}: the Arabic page loads Readex Pro and the English page does not`, async ({ page }) => {
+    const fonts: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes('readex-pro')) fonts.push(req.url());
+    });
+    await page.goto(en);
+    await page.waitForLoadState('networkidle');
+    expect(fonts).toEqual([]);
+    await page.goto(ar);
+    await page.waitForLoadState('networkidle');
+    expect(fonts.some((url) => /readex-pro-arabic-400-normal.*\.woff2$/.test(url))).toBe(true);
   });
-  await page.goto(EN_PATH);
-  await page.waitForLoadState('networkidle');
-  expect(fonts).toEqual([]);
-  await page.goto(AR_PATH);
-  await page.waitForLoadState('networkidle');
-  expect(fonts.some((url) => /readex-pro-arabic-400-normal.*\.woff2$/.test(url))).toBe(true);
-});
 
-test('Arabic text uses Readex Pro first', async ({ page }) => {
-  await page.goto(AR_PATH);
-  await expect(page.locator('body')).toHaveCSS('font-family', /^"Readex Pro"/);
-});
+  test(`${slug}: Arabic text uses Readex Pro first`, async ({ page }) => {
+    await page.goto(ar);
+    await expect(page.locator('body')).toHaveCSS('font-family', /^"Readex Pro"/);
+  });
 
-test('the Arabic skip link is translated', async ({ page }) => {
-  await page.goto(AR_PATH);
-  await expect(page.locator('a.skip-link')).toHaveText('انتقل إلى المحتوى');
-});
+  test(`${slug}: the Arabic skip link is translated`, async ({ page }) => {
+    await page.goto(ar);
+    await expect(page.locator('a.skip-link')).toHaveText('انتقل إلى المحتوى');
+  });
+}

@@ -388,7 +388,8 @@ html[dir='rtl'] .cs code {
   gap: 6px;
 }
 
-.ex__btns button {
+.ex__btns button,
+.scn__btns button {
   padding-block: 6px;
   padding-inline: 12px;
   border: 1px solid var(--line);
@@ -404,12 +405,14 @@ html[dir='rtl'] .cs code {
     background-color 0.2s;
 }
 
-.ex__btns button:hover {
+.ex__btns button:hover,
+.scn__btns button:hover {
   border-color: #64748b;
   color: var(--ink);
 }
 
-.ex__btns button[aria-pressed='true'] {
+.ex__btns button[aria-pressed='true'],
+.scn__btns button[aria-pressed='true'] {
   border-color: var(--teal);
   color: var(--teal);
   background: rgba(45, 212, 191, 0.08);
@@ -427,7 +430,9 @@ html[dir='rtl'] .cs code {
   display: flex;
 }
 
-.ex__switch {
+.ex__switch,
+.scn__alt [role='switch'],
+.rchart [role='switch'] {
   position: relative;
   flex: none;
   width: 40px;
@@ -439,7 +444,9 @@ html[dir='rtl'] .cs code {
   cursor: pointer;
 }
 
-.ex__switch::after {
+.ex__switch::after,
+.scn__alt [role='switch']::after,
+.rchart [role='switch']::after {
   content: '';
   position: absolute;
   inset-block-start: 3px;
@@ -453,16 +460,22 @@ html[dir='rtl'] .cs code {
     background-color 0.2s;
 }
 
-.ex__switch[aria-checked='true'] {
+.ex__switch[aria-checked='true'],
+.scn__alt [role='switch'][aria-checked='true'],
+.rchart [role='switch'][aria-checked='true'] {
   border-color: #fb7185;
 }
 
-.ex__switch[aria-checked='true']::after {
+.ex__switch[aria-checked='true']::after,
+.scn__alt [role='switch'][aria-checked='true']::after,
+.rchart [role='switch'][aria-checked='true']::after {
   transform: translateX(16px);
   background: #fb7185;
 }
 
-html[dir='rtl'] .ex__switch[aria-checked='true']::after {
+html[dir='rtl'] .ex__switch[aria-checked='true']::after,
+html[dir='rtl'] .scn__alt [role='switch'][aria-checked='true']::after,
+html[dir='rtl'] .rchart [role='switch'][aria-checked='true']::after {
   transform: translateX(-16px);
 }
 
@@ -651,7 +664,8 @@ html[lang='ar'] .ex__title {
   letter-spacing: 0;
 }
 
-html[lang='ar'] .ex__btns button {
+html[lang='ar'] .ex__btns button,
+html[lang='ar'] .scn__btns button {
   font-family: inherit;
   font-size: 0.8125rem;
 }
@@ -693,5 +707,860 @@ html[lang='ar'] .ex__sub {
 @media (prefers-reduced-motion: reduce) {
   .ex .ex__pk {
     display: none !important;
+  }
+}
+
+/* ---------- Ingestion story (Mynt, spec §4, §7.9) ---------- */
+
+.story__lesson {
+  border-inline-start: 3px solid var(--teal);
+  padding-inline-start: 16px;
+  margin-block: 20px;
+}
+
+.takeaways {
+  margin-block: 16px 0;
+  padding-inline-start: 24px;
+}
+
+.takeaways li + li {
+  margin-block-start: 16px;
+}
+
+.takeaways__price {
+  color: var(--muted);
+}
+
+.cs-sr,
+.scn__run.is-current .scn__run-title {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Scenario demos (spec §7.4) ---------- */
+
+.scn {
+  margin-block: 26px 30px;
+  padding-block: 18px 14px;
+  padding-inline: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.scn__title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.scn__note {
+  margin-block: 4px 12px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.scn__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scn__alt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block: 10px 6px;
+  font-size: 0.8125rem;
+}
+
+.scn__idle {
+  margin-block: 10px 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.scn__run-title {
+  margin-block: 12px 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.scn__steps {
+  margin: 0;
+  padding-inline-start: 24px;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.scn__steps li + li {
+  margin-block-start: 6px;
+}
+
+html[lang='ar'] .scn__title {
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+}
+
+/* Without JavaScript every run is listed with its heading and all its steps. */
+@media (scripting: none) {
+  .scn__btns,
+  .scn__alt,
+  .scn__idle,
+  .scn [data-live] {
+    display: none;
+  }
+}
+
+@media (scripting: enabled) {
+  .scn__run:not(.is-current) {
+    display: none;
+  }
+
+  /* Unreached steps keep their space, so revealing them causes no layout shift. */
+  .scn__run.is-current li:not(.is-shown) {
+    visibility: hidden;
+  }
+
+  .scn[data-state='run'] .scn__idle {
+    display: none;
+  }
+}
+
+/* ---------- Dedup table (chapter 4, spec §7.6) ---------- */
+
+.dt {
+  inline-size: 100%;
+  margin-block: 26px 30px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.dt caption {
+  margin-block-end: 8px;
+  text-align: start;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.dt th,
+.dt td {
+  padding-block: 6px;
+  padding-inline: 10px;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+}
+
+.dt thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* The event ids keep their own direction inside Arabic text, as the Getridley code does. */
+.dt code {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Row n is shown when the chapter carries data-rows >= n (same pattern as the diagram slots). */
+.dt tbody tr {
+  display: none;
+}
+
+[data-chapter][data-rows='1'] .dt tbody tr:nth-child(-n+1),
+[data-chapter][data-rows='2'] .dt tbody tr:nth-child(-n+2),
+[data-chapter][data-rows='3'] .dt tbody tr:nth-child(-n+3) {
+  display: table-row;
+}
+
+/* A duplicate turns the third stored row rose; the word keeps it out of colour-only meaning. */
+[data-chapter][data-dup='yes'][data-rows='3'] .dt tbody tr:nth-child(3) {
+  background-color: rgba(251, 113, 133, 0.15);
+}
+
+.dt__dup {
+  display: none;
+}
+
+[data-chapter][data-dup='yes'][data-rows='3'] .dt__dup {
+  display: inline;
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Without JavaScript the run's row counts never change, so the whole table is hidden (spec §4). */
+@media (scripting: none) {
+  .dt {
+    display: none;
+  }
+}
+
+/* ---------- Retry chart (spec §7.5) ---------- */
+
+.rchart {
+  margin-block: 26px 30px;
+  padding-block: 18px 14px;
+  padding-inline: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.rchart__title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rchart__note {
+  margin-block: 4px 12px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.rchart__switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-block: 0 12px;
+}
+
+.rchart__switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8125rem;
+}
+
+.rchart__svg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  direction: ltr;
+}
+
+.rchart__svg text {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.rchart__axis {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.rchart__tick {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.rchart__limit {
+  stroke: #fb7185;
+  stroke-width: 1.4;
+  stroke-dasharray: 5 4;
+}
+
+.rchart__limit-label {
+  fill: #fb7185;
+}
+
+.rchart__first-label {
+  font-size: 10px;
+}
+
+.rchart__band {
+  fill: rgba(251, 191, 36, 0.16);
+}
+
+.rchart__band-label {
+  fill: #fbbf24;
+}
+
+.rchart__axis-title {
+  font-size: 10px;
+}
+
+.rchart__bar {
+  fill: var(--teal);
+  transition: fill 0.2s;
+}
+
+.rchart__bar--first {
+  fill: #526077;
+}
+
+/* One series at a time (spec §7.5): the root's two data attributes pick the matching group. */
+.rchart g[data-series] {
+  display: none;
+}
+
+.rchart[data-jitter='off'][data-r429='off'] g[data-series='plain'],
+.rchart[data-jitter='on'][data-r429='off'] g[data-series='jitter'],
+.rchart[data-jitter='off'][data-r429='on'] g[data-series='plain429'],
+.rchart[data-jitter='on'][data-r429='on'] g[data-series='jitter429'] {
+  display: block;
+}
+
+.rchart__cap-title {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+
+.rchart__cap > p + p {
+  margin-block-start: 2px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.rchart__cap + .rchart__cap {
+  margin-block-start: 12px;
+}
+
+/* With a running script only the caption for the shown series is listed. */
+@media (scripting: enabled) {
+  .rchart__cap {
+    display: none;
+  }
+
+  .rchart[data-jitter='off'][data-r429='off'] .rchart__cap[data-cap='plain'],
+  .rchart[data-jitter='on'][data-r429='off'] .rchart__cap[data-cap='jitter'],
+  .rchart[data-jitter='off'][data-r429='on'] .rchart__cap[data-cap='plain429'],
+  .rchart[data-jitter='on'][data-r429='on'] .rchart__cap[data-cap='jitter429'] {
+    display: block;
+  }
+}
+
+/* Without JavaScript the switches are hidden and every caption is listed (spec §4). */
+@media (scripting: none) {
+  .rchart__switches {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rchart__bar {
+    transition: none;
+  }
+}
+
+html[lang='ar'] .rchart__title {
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+}
+
+/* ---------- Prefetch demo (chapter 7, spec §7.7) ---------- */
+
+.pf {
+  margin-block: 26px 30px;
+  padding-block: 18px 14px;
+  padding-inline: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.pf__title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pf__note {
+  margin-block: 4px 12px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.pf__explain {
+  margin-block: 0 16px;
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+
+.pf__control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.pf__control label {
+  flex: none;
+}
+
+.pf__control input[type='range'] {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  accent-color: var(--teal);
+}
+
+.pf__value {
+  flex: none;
+  min-inline-size: 1.5em;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.pf__rows {
+  margin-block-start: 18px;
+}
+
+/* Each row is its own track: the bar starts at 0 and grows to --v/8 of the width. */
+.pf__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'label output'
+    'bar bar';
+  align-items: center;
+  gap: 4px 10px;
+  margin-block-start: 14px;
+}
+
+.pf__row-label {
+  grid-area: label;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.pf__row output {
+  grid-area: output;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pf__bar {
+  grid-area: bar;
+  block-size: 10px;
+  border-radius: 5px;
+  background: var(--teal);
+  inline-size: calc(var(--v) / 8 * 100%);
+  transition: inline-size 0.15s;
+}
+
+.pf__limit {
+  position: absolute;
+  inset-block: 50% 0;
+  inset-inline-start: calc(var(--v) / 8 * 100%);
+  border-inline-start: 1px dashed var(--muted);
+  pointer-events: none;
+}
+
+.pf__limit-label {
+  position: absolute;
+  inset-block-end: 100%;
+  inset-inline-start: 4px;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.pf__status {
+  margin-block-start: 14px;
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+
+html[lang='ar'] .pf__title {
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+}
+
+/* Without JavaScript the slider and readouts are hidden (spec §7.7). */
+@media (scripting: none) {
+  .pf__control input[type='range'],
+  .pf__value,
+  .pf__rows,
+  .pf__status {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf__bar {
+    transition: none;
+  }
+}
+
+/* ---------- Ingestion diagram (spec §7.3) ---------- */
+
+.chapter__figure {
+  margin-block: 16px 20px;
+  margin-inline: 0;
+}
+
+.dg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+.dg__caption {
+  margin-block: 8px 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+/* --- Shapes --- */
+
+.dg-edge {
+  fill: none;
+  stroke: #243045;
+  stroke-width: 1.6;
+  transition: stroke 0.3s;
+}
+
+.dg-edge--dash {
+  stroke-dasharray: 4 4;
+}
+
+.dg-node {
+  fill: #111a2e;
+  stroke: var(--line);
+  stroke-width: 1.2;
+  transition:
+    fill 0.3s,
+    stroke 0.3s;
+}
+
+.dg-node--dash {
+  stroke-dasharray: 4 3;
+}
+
+.dg-chip {
+  fill: #111a2e;
+  stroke: var(--line);
+  stroke-width: 1.2;
+  transition:
+    fill 0.3s,
+    stroke 0.3s;
+}
+
+.dg-qslot,
+.dg-pslot {
+  fill: #526077;
+  display: none;
+}
+
+.dg-bar {
+  fill: #526077;
+  display: none;
+}
+
+.dg-bell {
+  fill: var(--line);
+}
+
+.dg-dot {
+  fill: var(--teal);
+  display: none;
+}
+
+.dg.is-running .dg-dot {
+  display: inline;
+}
+
+.dg-dot.is-amber {
+  fill: #fbbf24;
+}
+
+.dg-dot.is-rose {
+  fill: #fb7185;
+}
+
+/* --- Text --- */
+
+.dg-label text {
+  fill: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  stroke: none;
+  transition: fill 0.3s;
+}
+
+.dg-label .dg-sub {
+  fill: #526077;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+}
+
+.dg-chiptext text {
+  fill: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  stroke: none;
+  display: none;
+}
+
+.dg-note {
+  fill: #fb7185;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  stroke: none;
+  display: none;
+}
+
+.dg-note[data-note='stale'] {
+  fill: #fbbf24;
+}
+
+.dg-ack {
+  fill: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+html[lang='ar'] .dg-label .dg-sub {
+  font-family: inherit;
+}
+
+/* --- State → drawing (spec §7.3) --- */
+
+/* Counts: the first n slots or bars are the ones on show. */
+.dg[data-queue='1'] .dg-qslot:nth-of-type(-n+1),
+.dg[data-queue='2'] .dg-qslot:nth-of-type(-n+2),
+.dg[data-queue='3'] .dg-qslot:nth-of-type(-n+3),
+.dg[data-queue='4'] .dg-qslot:nth-of-type(-n+4),
+.dg[data-queue='5'] .dg-qslot:nth-of-type(-n+5),
+.dg[data-queue='6'] .dg-qslot:nth-of-type(-n+6),
+.dg[data-parking='1'] .dg-pslot:nth-of-type(-n+1),
+.dg[data-parking='2'] .dg-pslot:nth-of-type(-n+2),
+.dg[data-parking='3'] .dg-pslot:nth-of-type(-n+3),
+.dg[data-parking='4'] .dg-pslot:nth-of-type(-n+4),
+.dg[data-parking='5'] .dg-pslot:nth-of-type(-n+5),
+.dg[data-parking='6'] .dg-pslot:nth-of-type(-n+6),
+.dg[data-rows='1'] .dg-bar:nth-of-type(-n+1),
+.dg[data-rows='2'] .dg-bar:nth-of-type(-n+2),
+.dg[data-rows='3'] .dg-bar:nth-of-type(-n+3) {
+  display: inline;
+}
+
+/* A duplicate turns the last stored row rose. */
+.dg[data-dup='yes'][data-rows='1'] .dg-bar:nth-of-type(1),
+.dg[data-dup='yes'][data-rows='2'] .dg-bar:nth-of-type(2),
+.dg[data-dup='yes'][data-rows='3'] .dg-bar:nth-of-type(3) {
+  fill: #fb7185;
+}
+
+/* Naive mode keeps only the cron, providers and db path. */
+.dg[data-naive='yes'] [data-from]:not([data-naive-keep]) {
+  display: none;
+}
+
+.dg[data-naive='no'] [data-edge='naiveProv'],
+.dg[data-naive='no'] [data-edge='naiveDb'] {
+  display: none;
+}
+
+/* The current stage's pieces. */
+.dg .dg-node.is-new,
+.dg .dg-chip.is-new,
+.dg .dg-edge.is-new,
+.dg .dg-bell.is-new {
+  stroke: var(--teal);
+}
+
+.dg .dg-label.is-new .dg-main {
+  fill: var(--teal);
+}
+
+.dg .is-off {
+  display: none;
+}
+
+/* State colours come after the highlight so they win on the current stage's pieces. */
+.dg[data-down='cron'] rect[data-node='cron'],
+.dg[data-down='consumer'] rect[data-node='consumer'],
+.dg[data-down='providers'] rect[data-node='providers'] {
+  stroke: #fb7185;
+}
+
+.dg[data-stale='yes'] rect[data-node='db'] {
+  stroke: #fbbf24;
+}
+
+.dg[data-down='cron'] [data-label='cron'] .dg-sub,
+.dg[data-down='consumer'] [data-label='consumer'] .dg-sub,
+.dg[data-down='providers'] [data-label='providers'] .dg-sub {
+  display: none;
+}
+
+.dg[data-bell='yes'] .dg-bell {
+  fill: #fbbf24;
+}
+
+.dg[data-breaker='closed'] rect[data-chip='breaker'] {
+  stroke: var(--teal);
+}
+
+.dg[data-breaker='open'] rect[data-chip='breaker'] {
+  stroke: #fb7185;
+}
+
+.dg[data-breaker='half-open'] rect[data-chip='breaker'] {
+  stroke: #fbbf24;
+}
+
+.dg[data-breaker='off'] rect[data-chip='breaker'] {
+  stroke: var(--muted);
+  stroke-dasharray: 4 3;
+}
+
+.dg[data-dedup='on'] rect[data-chip='dedup'] {
+  stroke: var(--teal);
+}
+
+.dg[data-dedup='off'] rect[data-chip='dedup'] {
+  stroke: var(--muted);
+}
+
+.dg[data-dedup='hit'] rect[data-chip='dedup'] {
+  fill: var(--teal);
+  stroke: var(--teal);
+}
+
+.dg[data-dedup='on'] [data-chip-text='dedup'] text[data-v='on'],
+.dg[data-dedup='off'] [data-chip-text='dedup'] text[data-v='off'],
+.dg[data-dedup='hit'] [data-chip-text='dedup'] text[data-v='hit'],
+.dg[data-breaker='closed'] [data-chip-text='breaker'] text[data-v='closed'],
+.dg[data-breaker='open'] [data-chip-text='breaker'] text[data-v='open'],
+.dg[data-breaker='half-open'] [data-chip-text='breaker'] text[data-v='half-open'],
+.dg[data-breaker='off'] [data-chip-text='breaker'] text[data-v='off'],
+.dg [data-chip-text='prefetch'] text {
+  display: inline;
+}
+
+/* The notes only fit the roomy desktop drawing. */
+@media (min-width: 1024px) {
+  .dg[data-down='cron'] [data-label='cron'] .dg-note[data-note='crashed'],
+  .dg[data-down='consumer'] [data-label='consumer'] .dg-note[data-note='crashed'],
+  .dg[data-down='providers'] [data-label='providers'] .dg-note[data-note='down'],
+  .dg[data-lost='yes'] .dg-note[data-note='lost'],
+  .dg[data-stale='yes'] .dg-note[data-note='stale'] {
+    display: block;
+  }
+}
+
+/* Below 1024px the drawing is about half size: bigger names, no sub-labels, chips, acks or notes. */
+@media (max-width: 1023.98px) {
+  .dg-label text {
+    font-size: 15px;
+  }
+
+  .dg-label .dg-sub,
+  .dg-chiptext,
+  .dg-ack,
+  .dg-note {
+    display: none;
+  }
+
+  /* Names that sat above a sub-label move to the middle of their box. */
+  .dg-label:has(.dg-sub) .dg-main {
+    transform: translateY(calc(var(--shift) * 1px));
+  }
+}
+
+/* ---------- Ingestion story layout (spec §4) ---------- */
+
+/* Hidden without JavaScript and below 1024px; the chapter figures carry the diagram there. */
+.story__stage {
+  display: none;
+}
+
+/* The appear animation (§7.3): new nodes and chips fade in and scale from 0.92, edges draw in. */
+@keyframes dg-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes dg-draw {
+  from {
+    stroke-dashoffset: 1000;
+  }
+}
+
+.story.is-live .story__stage .is-new,
+.story.is-live .dg.is-seen .is-new {
+  animation: dg-in 450ms ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.story.is-live .dg-edge.is-new:not(.dg-edge--dash) {
+  animation-name: dg-draw;
+  stroke-dasharray: 1000;
+}
+
+@media (scripting: enabled) and (min-width: 1024px) {
+  .story {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 56px;
+  }
+
+  .story__chapters {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .story__stage {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    position: sticky;
+    inset-block-start: calc(50vh - 130px);
+  }
+
+  /* One diagram at a time on desktop: the sticky one. */
+  .chapter__figure {
+    display: none;
+  }
+
+  /* Titles stay inside the text column, not the full content width. */
+  .story .section__title {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story.is-live .story__stage .is-new,
+  .story.is-live .dg.is-seen .is-new,
+  .story.is-live .dg-edge.is-new:not(.dg-edge--dash) {
+    animation: none;
+  }
+
+  .dg * {
+    transition: none;
   }
 }

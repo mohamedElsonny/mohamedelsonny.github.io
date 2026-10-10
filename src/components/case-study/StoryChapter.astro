@@ -1,0 +1,25 @@
+---
+import Section from '../Section.astro';
+import IngestionDiagram from './IngestionDiagram.astro';
+import { BASE_STATE, stateData, type DiagramLabels, type Stage } from './ingestion';
+
+interface Props {
+  id: string;
+  title: string;
+  stage: Stage;
+  labels: DiagramLabels;
+  dir: 'ltr' | 'rtl';
+}
+
+const { id, title, stage, labels, dir } = Astro.props;
+---
+
+<div class="chapter" data-chapter={id} data-stage={stage} {...stateData(BASE_STATE)}>
+  <Section id={id} title={title}>
+    <slot />
+    <figure class="chapter__figure">
+      <IngestionDiagram stage={stage} uid={id} labels={labels} dir={dir} />
+    </figure>
+    <slot name="demo" />
+  </Section>
+</div>

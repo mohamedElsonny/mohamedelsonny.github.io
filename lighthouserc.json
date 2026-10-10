@@ -5,7 +5,9 @@
       "url": [
         "http://localhost/index.html",
         "http://localhost/case-studies/getridley/index.html",
-        "http://localhost/ar/case-studies/getridley/index.html"
+        "http://localhost/ar/case-studies/getridley/index.html",
+        "http://localhost/case-studies/mynt/index.html",
+        "http://localhost/ar/case-studies/mynt/index.html"
       ],
       "numberOfRuns": 3
     },

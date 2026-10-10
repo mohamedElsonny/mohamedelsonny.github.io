@@ -1,0 +1,41 @@
+---
+interface Props {
+  caption: string;
+  columns: [string, string, string];
+  duplicate: string;
+}
+
+const { caption, columns, duplicate } = Astro.props;
+
+/** The demo rows (spec §7.6): the same events in both languages. */
+const ROWS: [string, string, string][] = [
+  ['evt_3f9a', 'transfer', 'NFT #1182'],
+  ['evt_7c21', 'sale', 'NFT #0457'],
+  ['evt_7c21', 'sale', 'NFT #0457'],
+];
+---
+
+<table class="dt">
+  <caption>{caption}</caption>
+  <thead>
+    <tr>
+      {columns.map((column) => (
+        <th scope="col"><code dir="ltr">{column}</code></th>
+      ))}
+    </tr>
+  </thead>
+  <tbody>
+    {
+      ROWS.map(([id, type, nft], i) => (
+        <tr>
+          <td><code dir="ltr">{id}</code></td>
+          <td>{type}</td>
+          <td>
+            {nft}
+            {i === 2 && <> <span class="dt__dup">{duplicate}</span></>}
+          </td>
+        </tr>
+      ))
+    }
+  </tbody>
+</table>

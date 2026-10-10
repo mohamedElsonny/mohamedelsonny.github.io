@@ -1,0 +1,98 @@
+---
+import { PREFETCH_DEMO } from './ingestion';
+
+interface Props {
+  title: string;
+  note: string;
+  label: string;
+  explain: string;
+  readouts: { throughput: string; calls: string; limit: string };
+  under: string;
+  over: string;
+}
+
+const { title, note, label, explain, readouts, under, over } = Astro.props;
+const { rows, limit } = PREFETCH_DEMO;
+const calls = rows.map((row) => String(row.calls));
+const throughput = rows.map((row) => String(row.throughput));
+const overs = rows.map((row) => (row.over ? 'yes' : 'no'));
+const initial = 3;
+const id = 'pf';
+---
+
+<div class="pf" data-calls={calls.join(' ')} data-throughput={throughput.join(' ')} data-over={overs.join(' ')}>
+  <p class="pf__title">{title}</p>
+  <p class="pf__note">{note}</p>
+  <p class="pf__explain">{explain}</p>
+  <div class="pf__control">
+    <label for={id}>{label}</label>
+    <input id={id} type="range" min="1" max="8" step="1" value={initial} aria-valuetext={`prefetch ${initial}`} />
+    <output class="pf__value" for={id}>{initial}</output>
+  </div>
+  <div class="pf__rows">
+    <div class="pf__row" data-row="throughput" style={`--v:${throughput[initial - 1]}`}>
+      <span class="pf__row-label">{readouts.throughput}</span>
+      <span class="pf__bar"></span>
+      <output>{throughput[initial - 1]}</output>
+    </div>
+    <div class="pf__row" data-row="calls" style={`--v:${calls[initial - 1]}`}>
+      <span class="pf__row-label">{readouts.calls}</span>
+      <span class="pf__bar"></span>
+      <span class="pf__limit" style={`--v:${limit}`}>
+        <span class="pf__limit-label">{readouts.limit}</span>
+      </span>
+      <output>{calls[initial - 1]}</output>
+    </div>
+  </div>
+  <p class="pf__status" aria-live="polite" data-under={under} data-over={over}>{under}</p>
+</div>
+
+<script>
+  for (const pf of document.querySelectorAll<HTMLElement>('.pf')) {
+    const input = pf.querySelector<HTMLInputElement>('input[type="range"]');
+    const value = pf.querySelector<HTMLOutputElement>('.pf__value');
+    const status = pf.querySelector<HTMLElement>('.pf__status');
+    const chapter = pf.closest<HTMLElement>('[data-chapter]');
+    const figure = chapter?.querySelector<SVGElement>('.chapter__figure svg.dg') ?? null;
+    const sticky = document.querySelector<SVGElement>('.story__stage svg.dg');
+    if (!input || !value || !status || !chapter) continue;
+    const range = input;
+    const readout = value;
+    const live = status;
+    const ownChapter = chapter;
+
+    const calls = (pf.dataset.calls ?? '').split(' ');
+    const throughput = (pf.dataset.throughput ?? '').split(' ');
+    const overs = (pf.dataset.over ?? '').split(' ');
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const callsRow = pf.querySelector<HTMLElement>('[data-row="calls"]');
+    const tpRow = pf.querySelector<HTMLElement>('[data-row="throughput"]');
+
+    /** The diagram the slider writes to: the chapter figure below 1024px, the sticky one at stage 7 above. */
+    function diagram(): SVGElement | null {
+      return desktop.matches ? (sticky?.getAttribute('data-stage') === '7' ? sticky : null) : figure;
+    }
+
+    /** Applies the readouts for a prefetch value and writes `prefetch:<p>` to the target diagram. */
+    function update(p: number): void {
+      const i = p - 1;
+      callsRow?.style.setProperty('--v', calls[i]);
+      tpRow?.style.setProperty('--v', throughput[i]);
+      const callsOut = callsRow?.querySelector('output');
+      const tpOut = tpRow?.querySelector('output');
+      if (callsOut) callsOut.textContent = calls[i];
+      if (tpOut) tpOut.textContent = throughput[i];
+      readout.textContent = String(p);
+      range.setAttribute('aria-valuetext', `prefetch ${p}`);
+      live.textContent = overs[i] === 'yes' ? live.dataset.over ?? '' : live.dataset.under ?? '';
+      ownChapter.setAttribute('data-prefetch', String(p));
+      const target = diagram();
+      if (!target) return;
+      target.setAttribute('data-prefetch', String(p));
+      const text = target.querySelector<SVGTextElement>('[data-prefix]');
+      if (text) text.textContent = `${text.dataset.prefix} ${p}`;
+    }
+
+    range.addEventListener('input', () => update(Number(range.value)));
+  }
+</script>

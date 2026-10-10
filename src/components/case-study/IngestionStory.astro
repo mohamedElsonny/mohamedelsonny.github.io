@@ -1,0 +1,274 @@
+---
+import IngestionDiagram from './IngestionDiagram.astro';
+import { BASE_STATE, stateAttr, type DiagramLabels } from './ingestion';
+
+interface Props {
+  labels: DiagramLabels;
+  dir: 'ltr' | 'rtl';
+}
+
+const { labels, dir } = Astro.props;
+---
+
+<div class="story" data-story data-base={stateAttr(BASE_STATE)}>
+  <div class="story__chapters"><slot /></div>
+  <div class="story__stage"><IngestionDiagram stage="all" uid="s" labels={labels} dir={dir} /></div>
+</div>
+
+<script>
+  import { HOP_MS, HOLD_MS } from './ingestion';
+
+  /** Writes a `key:value key:value` string as data-* attributes. An empty string writes nothing. */
+  function apply(el: Element | null, state: string): void {
+    if (!el) return;
+    for (const pair of state.split(' ')) {
+      if (!pair) continue;
+      const split = pair.indexOf(':');
+      const key = pair.slice(0, split);
+      const value = pair.slice(split + 1);
+      el.setAttribute(`data-${key}`, value);
+      if (key === 'prefetch') {
+        const text = el.querySelector<SVGTextElement>('[data-prefix]');
+        if (text) text.textContent = `${text.dataset.prefix} ${value}`;
+      }
+    }
+  }
+
+  const story = document.querySelector<HTMLElement>('[data-story]');
+
+  if (story) {
+    const base = story.dataset.base ?? '';
+    const chapters = [...story.querySelectorAll<HTMLElement>('[data-chapter]')];
+    const sticky = story.querySelector<SVGElement>('.story__stage svg.dg');
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    let locked = false;
+    let frame = 0;
+    let token = 0;
+    let running: HTMLElement | null = null;
+
+    const scnOf = (chapter: HTMLElement) => chapter.querySelector<HTMLElement>('.scn');
+    const figureOf = (chapter: HTMLElement) => chapter.querySelector<SVGElement>('.chapter__figure svg.dg');
+
+    /**
+     * The state a chapter rests in: base, plus the run its switch selects when it has one
+     * (spec §7.4 item 1). Chapters without a switch idle at base.
+     */
+    function idleState(chapter: HTMLElement): string {
+      const scn = scnOf(chapter);
+      const toggle = chapter.querySelector('[role="switch"]');
+      const button = chapter.querySelector<HTMLElement>('[data-run]');
+      if (!scn || !toggle || !button) return base;
+      const run = toggle.getAttribute('aria-checked') === 'true' ? button.dataset.alt : button.dataset.run;
+      const group = run ? scn.querySelector<HTMLElement>(`[data-scn="${run}"]`) : null;
+      const initial = group?.dataset.initial ?? '';
+      return initial ? `${base} ${initial}` : base;
+    }
+
+    function hideDot(chapter: HTMLElement): void {
+      for (const dg of [sticky, figureOf(chapter)]) {
+        if (!dg) continue;
+        dg.classList.remove('is-running');
+        dg.querySelector('.dg-dot')?.classList.remove('is-amber', 'is-rose');
+      }
+    }
+
+    /** Cancels any run in `chapter`, returns its demo to idle and applies the idle state. */
+    function cancel(chapter: HTMLElement): void {
+      if (running === chapter) {
+        token++;
+        running = null;
+        locked = false;
+        if (desktop.matches) schedule();
+      }
+      chapter.removeAttribute('data-run');
+      chapter.removeAttribute('data-done');
+      const scn = scnOf(chapter);
+      if (scn) {
+        scn.setAttribute('data-state', 'idle');
+        for (const run of scn.querySelectorAll('.scn__run')) run.classList.remove('is-current');
+        for (const li of scn.querySelectorAll('li')) li.classList.remove('is-shown');
+        for (const button of scn.querySelectorAll('[data-run]')) button.setAttribute('aria-pressed', 'false');
+      }
+      hideDot(chapter);
+      const state = idleState(chapter);
+      apply(chapter, state);
+      apply(figureOf(chapter), state);
+      if (desktop.matches && sticky && sticky.getAttribute('data-stage') === chapter.dataset.stage) apply(sticky, state);
+    }
+
+    /** Shows chapter n's stage on the sticky diagram, resets the other demos and idles chapter n. */
+    function setStage(n: number): void {
+      if (!sticky) return;
+      sticky.setAttribute('data-stage', String(n));
+      for (const piece of sticky.querySelectorAll<SVGElement>('[data-from]')) {
+        const from = Number(piece.getAttribute('data-from'));
+        piece.classList.toggle('is-off', from > n);
+        piece.classList.toggle('is-new', from === n);
+      }
+      chapters.forEach((chapter, i) => {
+        if (i !== n) cancel(chapter);
+      });
+      // At stage 7 the slider is the source of the prefetch value; every other stage rests at base.
+      const slider = n === 7 ? document.querySelector<HTMLInputElement>('.pf input') : null;
+      apply(sticky, slider ? `${idleState(chapters[n])} prefetch:${slider.value}` : idleState(chapters[n]));
+    }
+
+    /** The active chapter is the last one whose top has passed the middle of the viewport. */
+    function sync(): void {
+      frame = 0;
+      if (locked || !sticky || !desktop.matches) return;
+      const middle = window.innerHeight / 2;
+      let n = 0;
+      chapters.forEach((chapter, i) => {
+        if (chapter.getBoundingClientRect().top <= middle) n = i;
+      });
+      if (Number(sticky.getAttribute('data-stage')) !== n) setStage(n);
+    }
+
+    function schedule(): void {
+      if (!frame) frame = requestAnimationFrame(sync);
+    }
+
+    /** Points the dot at the edge and sends it along; the player waits the hop out (spec §7.4 item 6). */
+    async function hop(diagram: SVGElement | null, move: string, tone: string | undefined): Promise<void> {
+      if (!diagram) {
+        await wait(HOP_MS);
+        return;
+      }
+      diagram.classList.add('is-running');
+      const dot = diagram.querySelector<SVGCircleElement>('.dg-dot');
+      if (dot) {
+        dot.classList.toggle('is-amber', tone === 'amber');
+        dot.classList.toggle('is-rose', tone === 'rose');
+      }
+      const backwards = move.startsWith('-');
+      const edge = backwards ? move.slice(1) : move;
+      const path = diagram.querySelector<SVGPathElement>(`[data-edge="${edge}"]`);
+      const motion = dot?.querySelector('animateMotion');
+      if (dot && path && motion) {
+        motion.querySelector('mpath')?.setAttribute('href', `#${path.id}`);
+        motion.setAttribute('keyPoints', backwards ? '1;0' : '0;1');
+        motion.setAttribute('keyTimes', '0;1');
+        (motion as SVGAnimationElement).beginElement();
+      } else if (dot && path) {
+        const point = path.getPointAtLength(backwards ? 0 : path.getTotalLength());
+        dot.setAttribute('cx', String(point.x));
+        dot.setAttribute('cy', String(point.y));
+      }
+      await wait(HOP_MS);
+    }
+
+    /** Every state write goes to the chapter element and to the diagram it targets (spec §7.4 item 1). */
+    function write(chapter: HTMLElement, diagram: SVGElement | null, state: string): void {
+      apply(chapter, state);
+      apply(diagram, state);
+    }
+
+    /** Runs a scenario: cancels any current run, then reveals steps, writes states and travels hops. */
+    async function play(chapter: HTMLElement, id: string, group: HTMLElement, diagram: SVGElement | null, mine: number): Promise<void> {
+      const live = chapter.querySelector('[data-live]');
+      write(chapter, diagram, `${base} ${group.dataset.initial ?? ''}`.trim());
+      for (const li of group.querySelectorAll<HTMLElement>('li')) {
+        if (mine !== token) return;
+        li.classList.add('is-shown');
+        if (live) live.textContent = li.textContent ?? '';
+        write(chapter, diagram, li.dataset.pre ?? '');
+        for (const move of (li.dataset.move ?? '').split(' ').filter(Boolean)) {
+          if (mine !== token) return;
+          await hop(diagram, move, li.dataset.tone);
+          if (mine !== token) return;
+        }
+        write(chapter, diagram, li.dataset.set ?? '');
+        await wait(HOLD_MS);
+      }
+      if (mine !== token) return;
+      running = null;
+      chapter.removeAttribute('data-run');
+      chapter.setAttribute('data-done', id);
+      hideDot(chapter);
+      locked = false;
+      schedule();
+    }
+
+    function startRun(chapter: HTMLElement, id: string, button: HTMLElement): void {
+      if (running) cancel(running);
+      const scn = scnOf(chapter);
+      const group = scn?.querySelector<HTMLElement>(`[data-scn="${id}"]`);
+      if (!scn || !group) return;
+      if (desktop.matches) {
+        setStage(Number(chapter.dataset.stage));
+        locked = true;
+      }
+      running = chapter;
+      const diagram = desktop.matches ? sticky : figureOf(chapter);
+      if (diagram && reducedMotion.matches) diagram.querySelector('.dg-dot animateMotion')?.remove();
+      scn.setAttribute('data-state', 'run');
+      group.classList.add('is-current');
+      chapter.setAttribute('data-run', id);
+      for (const b of scn.querySelectorAll('[data-run]')) b.setAttribute('aria-pressed', String(b === button));
+      void play(chapter, id, group, diagram, ++token);
+    }
+
+    /** Clicking any button runs its scenario; the switch selects the button's `alt`. */
+    for (const chapter of chapters) {
+      const scn = scnOf(chapter);
+      if (!scn) continue;
+      scn.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        const toggle = target.closest<HTMLElement>('[role="switch"]');
+        if (toggle) {
+          toggle.setAttribute('aria-checked', String(toggle.getAttribute('aria-checked') !== 'true'));
+          cancel(chapter);
+          return;
+        }
+        const button = target.closest<HTMLElement>('button[data-run]');
+        if (!button || !scn.contains(button)) return;
+        const on = scn.querySelector('[role="switch"]')?.getAttribute('aria-checked') === 'true';
+        const id = on ? button.dataset.alt ?? button.dataset.run : button.dataset.run;
+        if (id) startRun(chapter, id, button);
+      });
+    }
+
+    story.classList.add('is-live');
+    for (const chapter of chapters) {
+      const state = idleState(chapter);
+      apply(chapter, state);
+      apply(figureOf(chapter), state);
+    }
+    sync();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    desktop.addEventListener('change', () => {
+      if (running) cancel(running);
+      schedule();
+    });
+
+    // A running demo stops when its panel leaves the viewport (spec §7.4 item 7).
+    const demoSeen = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) continue;
+          const chapter = entry.target.closest<HTMLElement>('[data-chapter]');
+          if (chapter && running === chapter) cancel(chapter);
+        }
+      },
+      { threshold: 0 },
+    );
+    for (const scn of story.querySelectorAll('[data-demo]')) demoSeen.observe(scn);
+
+    // Each figure plays its new pieces once, when it first scrolls into view (< 1024px).
+    const seen = new IntersectionObserver(
+      (entries, observer) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.add('is-seen');
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.4 },
+    );
+    for (const own of story.querySelectorAll('.chapter__figure svg.dg')) seen.observe(own);
+  }
+</script>

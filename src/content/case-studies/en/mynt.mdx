@@ -1,0 +1,439 @@
+---
+# Lead sources: A:b65205f0, M:1158cefb, A:0d663337, F:d1e7f7cb, F:aaef9a06 (decision a8366407), F:1e7d027a, F:1f28435f → F:fc2483ec.
+title: "Keeping scheduled ingestion alive when upstreams fail"
+description: "Mynt's scheduled ingestion from 5+ blockchains and 3+ APIs, one problem at a time: RabbitMQ, acks after the write, jittered retries, idempotent consumers, a parking-lot DLQ, circuit breakers and backpressure, and what each fix cost."
+lead: "Mynt.la was an NFT marketplace that collected transactions, NFTs and analytics from 5+ blockchains and 3+ external APIs, including OpenSea. I built its backend and owned the architectural decision to decouple that collection through RabbitMQ. This is how the pipeline was made to survive failing upstreams, one problem at a time. Every fix had a price, and one of those prices became the next problem."
+lang: en
+translationOf: mynt
+label: "Web3 & NFTs"
+tags: ["RabbitMQ", "Cron", "Retries", "Dead-letter queue", "Circuit Breaker", "Idempotency"]
+---
+
+import Section from '../../../components/Section.astro';
+import IngestionStory from '../../../components/case-study/IngestionStory.astro';
+import StoryChapter from '../../../components/case-study/StoryChapter.astro';
+import ScenarioDemo from '../../../components/case-study/ScenarioDemo.astro';
+import DedupTable from '../../../components/case-study/DedupTable.astro';
+import RetryChart from '../../../components/case-study/RetryChart.astro';
+import PrefetchDemo from '../../../components/case-study/PrefetchDemo.astro';
+
+export const diagramLabels = {
+  nodes: {
+    providers: { main: 'Providers', sub: 'chains + APIs' }, db: { main: 'Database' },
+    cron: { main: 'Cron', sub: 'schedules' }, exchange: { main: 'Exchange', sub: 'RabbitMQ' },
+    queue: { main: 'Queue' }, consumer: { main: 'Consumer', sub: 'fetch + save' },
+    retry: { main: 'Retry', sub: 'TTL queues' }, parking: { main: 'Parking lot' },
+  },
+  ack: 'ack after save',
+  dedup: { on: 'dedup', off: 'no dedup', hit: 'dedup ✓' },
+  breaker: { closed: 'closed', open: 'open', 'half-open': 'half-open', off: 'no breaker' },
+  prefetch: 'prefetch',
+  crashed: 'crashed', down: 'down', lost: 'work lost ✕', stale: 'stale',
+  caption: 'Simplified: one queue, one consumer and one provider stand for many.',
+};
+
+export const demos = {
+  cron: {
+    title: 'Try it: crash the cron',
+    note: 'Scripted demo. Numbers and data are illustrative, not Mynt’s real settings.',
+    idle: 'Pick a scenario to run it.',
+    buttons: [
+      { label: 'Crash the naive cron', run: 'naive-crash' },
+      { label: 'Crash the cron + queue', run: 'queued-crash' },
+    ],
+    runs: [
+      {
+        id: 'naive-crash',
+        heading: 'Crash the naive cron',
+        steps: [
+          'Cron starts the run and calls the first provider.',
+          'It writes that provider’s data to the database.',
+          'The cron process crashes halfway through the run.',
+          'Every provider it had not reached is skipped. Nothing recorded that work, so it waits for the next scheduled run.',
+        ],
+      },
+      {
+        id: 'queued-crash',
+        heading: 'Crash the cron + queue',
+        steps: [
+          'Cron publishes the run’s jobs to RabbitMQ. They wait in the queue.',
+          'The cron process crashes.',
+          'A consumer takes the next job and calls the provider. The crash never touched it.',
+          'The result is saved.',
+          'Nothing was lost. The remaining jobs wait in the queue, outside the cron process, and the consumers keep going.',
+        ],
+      },
+    ],
+  },
+  ack: {
+    title: 'Try it: crash the worker',
+    note: 'Scripted demo. Numbers and data are illustrative, not Mynt’s real settings.',
+    idle: 'Pick a scenario to run it.',
+    buttons: [
+      { label: 'Crash before save', run: 'crash-before-save' },
+      { label: 'Crash after save', run: 'crash-after-save' },
+    ],
+    runs: [
+      {
+        id: 'crash-before-save',
+        heading: 'Crash before save',
+        steps: [
+          'A consumer takes a message. It has not acked it yet.',
+          'It fetches the data from the provider.',
+          'The worker crashes before saving.',
+          'The message was never acked, so RabbitMQ puts it back in the queue. With an ack on receipt, it would be gone, and nobody would know.',
+          'A worker takes it again, fetches the data and saves it.',
+          'Only now does the worker ack it. Nothing was lost.',
+        ],
+      },
+      {
+        id: 'crash-after-save',
+        heading: 'Crash after save',
+        steps: [
+          'A consumer takes a message.',
+          'It fetches the data and saves the row.',
+          'The worker crashes after saving, before it can ack.',
+          'The message was never acked, so RabbitMQ delivers it again. This redelivery is on purpose.',
+          'A worker processes it again and saves the same row a second time.',
+          'Now it is acked, and the database holds a duplicate. Remember that second row.',
+        ],
+      },
+    ],
+  },
+  duplicates: {
+    title: 'Try it: the same message, twice',
+    note: 'Scripted demo. Numbers and data are illustrative, not Mynt’s real settings.',
+    idle: 'Pick a scenario to run it.',
+    buttons: [{ label: 'Deliver the message again', run: 'redeliver', alt: 'redeliver-dedup' }],
+    toggle: { label: 'Dedup by event ID' },
+    runs: [
+      {
+        id: 'redeliver',
+        heading: 'Deliver the message again, without dedup',
+        steps: [
+          'Message evt_7c21 arrives. The consumer fetches the data and saves the row.',
+          'The worker crashes before it can ack.',
+          'RabbitMQ delivers evt_7c21 again.',
+          'Without dedup, the consumer saves it again. One event, two rows.',
+          'It acks. The pipeline did exactly what it was told, and the data is wrong.',
+        ],
+      },
+      {
+        id: 'redeliver-dedup',
+        heading: 'Deliver the message again, with dedup by event ID',
+        steps: [
+          'Message evt_7c21 arrives. The consumer fetches the data and saves the row.',
+          'The worker crashes before it can ack.',
+          'RabbitMQ delivers evt_7c21 again.',
+          'With dedup by event ID, evt_7c21 is already stored, so the second delivery changes nothing. Still one row for that event.',
+          'It acks, and the redelivery is harmless.',
+        ],
+      },
+    ],
+  },
+  poison: {
+    title: 'Try it: a message that always fails',
+    note: 'Scripted demo. Numbers and data are illustrative, not Mynt’s real settings.',
+    idle: 'Pick a scenario to run it.',
+    buttons: [{ label: 'Send a poison message', run: 'poison' }],
+    runs: [
+      {
+        id: 'poison',
+        heading: 'Send a poison message',
+        steps: [
+          'A message arrives that can never succeed: say, a payload the parser can’t read.',
+          'Attempt 1 fails. The consumer rejects it without requeue, and the dead-letter exchange routes it to a retry queue.',
+          'Its TTL runs out, and it comes back to the queue.',
+          'Attempt 2 fails. Each trip through the dead-letter exchange adds to its x-death count.',
+          'It comes back again.',
+          'Attempt 3 fails. The count has reached the cap: 3 attempts in this demo.',
+          'It is moved to the parking lot, and the alert fires. The rest of the queue keeps moving.',
+        ],
+      },
+    ],
+  },
+  breaker: {
+    title: 'Try it: a provider goes down',
+    note: 'Scripted demo. Numbers and data are illustrative, not Mynt’s real settings.',
+    idle: 'Pick a scenario to run it.',
+    buttons: [{ label: 'Take the provider down', run: 'provider-down', alt: 'provider-down-dlq' }],
+    toggle: { label: 'What if failures went to the DLQ instead?' },
+    runs: [
+      {
+        id: 'provider-down',
+        heading: 'Take the provider down',
+        steps: [
+          'The provider goes down.',
+          'Calls to it fail.',
+          'After repeated failures, the breaker opens. Consumption from this provider pauses.',
+          'Cron keeps publishing. New work waits in the queue: nothing is consumed, and nothing goes to the DLQ.',
+          'While the circuit is open, this provider’s data goes stale.',
+          'The provider recovers. A typical breaker waits out a cool-down, then goes half-open.',
+          'One trial call goes through, and it succeeds.',
+          'The breaker closes, and the consumers drain the queue. Nothing was lost; it was only late.',
+        ],
+      },
+      {
+        id: 'provider-down-dlq',
+        heading: 'Take the provider down, with failures sent to the DLQ',
+        steps: [
+          'The provider goes down. This time there is no breaker.',
+          'Every call fails, and every retry fails too, adding load to a provider that is trying to recover.',
+          'Messages run out of attempts and land in the parking lot. The alert fires.',
+          'New work keeps arriving, fails the same way, and ends up there too.',
+          'The parking lot is now full of healthy messages. Their only problem was timing.',
+          'The provider is back, but nothing flows by itself: every parked message has to be replayed by hand.',
+        ],
+      },
+    ],
+  },
+};
+
+export const chart = {
+  title: 'Try it: retry storms',
+  note: 'Scripted demo: 8 workers fail at the same moment and retry 3 times, after 1 s, 2 s and 4 s. The provider’s rate limit is 6 requests per second. Illustrative numbers, not Mynt’s settings.',
+  jitterLabel: 'Jitter',
+  r429Label: 'Provider answers 429 with Retry-After: 5 s',
+  axis: { y: 'requests per second', x: 'seconds' },
+  limitLabel: 'rate limit',
+  retryAfterLabel: 'Retry-After',
+  firstLabel: 'first attempts',
+  captions: {
+    plain: { heading: 'No jitter.', text: 'The 8 workers that failed together retry together. The provider sees silence, then a spike above its limit, three times over.' },
+    jitter: { heading: 'With jitter.', text: 'Each worker adds a random amount to each wait. The same 24 retries spread out and stay under the limit.' },
+    plain429: { heading: '429, no jitter.', text: 'The provider answered 429 with Retry-After: 5 s. Nobody retries before then, but without jitter they all come back in the same second.' },
+    jitter429: { heading: '429 with jitter.', text: 'Retry-After honored and jitter added: nothing before 5 s, then the retries spread out under the limit.' },
+  },
+};
+
+export const prefetch = {
+  title: 'Try it: tune prefetch',
+  note: 'Scripted demo with one consumer and a provider limit of 6 calls at once. Illustrative numbers, not Mynt’s settings.',
+  label: 'Prefetch',
+  explain: 'In this demo the consumer works on every message it holds at once, so prefetch is also the number of calls in flight.',
+  readouts: {
+    throughput: 'Messages per second',
+    calls: 'Calls to the provider at once',
+    limit: 'limit',
+  },
+  under: 'Under the provider’s limit. Raise prefetch and throughput rises with it.',
+  over: 'Over the limit: the provider answers 429, and throughput stops rising.',
+};
+
+<IngestionStory labels={diagramLabels} dir="ltr">
+
+<StoryChapter id="setup" title="The setup" stage={0} labels={diagramLabels} dir="ltr">
+
+{/* Sources: project 5afd6a66, A:0d663337, F:d1e7f7cb, F:72e6ffe3, M:4cb09610, M:1158cefb, A:b65205f0. */}
+
+Mynt was a Web3 and NFT marketplace. Its backend surfaced wallet assets and on-chain transactions, and it integrated with OpenSea. To do that, it collected transactions, NFTs and analytics from 5+ blockchains, including Ethereum, Solana and Polygon, and from 3+ external APIs, including OpenSea, then stored the data and presented it.
+
+{/* Sources: M:44245385, F:e3f47f28, F:089001ad, F:35c3c185. Last sentence: general. */}
+
+That came to an estimated hundreds of updates a day, up to about 1,000, with occasional higher peaks. The problem was running that collection on a schedule, across many external sources, without losing work, while those sources failed: some briefly, some again and again. Any external source can be slow, rate-limited or down, on its own schedule.
+
+{/* Sources: F:aaef9a06. The rest: a description of the page. */}
+
+I owned the architectural decision and its tradeoff analysis. The rest of this page walks through that design one problem at a time. Each chapter has the same four parts: the problem, what Mynt did, the price, and a small demo you can run. The demos are scripted, and their numbers are illustrative, not Mynt's real settings.
+
+</StoryChapter>
+
+<StoryChapter id="cron" title="The naive cron" stage={1} labels={diagramLabels} dir="ltr">
+
+{/* Sources: F:811392e6 (rejected option, retrospective baseline: "simpler to operate… couples successful collection to one scheduler process and handles bursts and failures poorly"). The crash walkthrough is general. */}
+
+The simplest design does everything inside the cron job: wake up, call every provider, write the results, exit. It is easy to operate. But it ties the whole collection to one process finishing one run. If that process crashes halfway, or a burst of work makes it run long or time out, whatever it had not reached is simply not collected, and nothing records that the work was owed. Looking back, this is the baseline the real design is measured against, not something Mynt ran.
+
+{/* Sources: F:d8e2ce10, F:7f5f0068, F:4040a84b, F:36c923f3, F:35c3c185, F:1e7d027a. */}
+
+Mynt separated scheduling from processing. Cron jobs only published collection work to RabbitMQ. Consumers took that work from the queue, collected transactions, NFTs and analytics across the chains and APIs, and stored them. Once a job is in the queue, it lives outside the cron process, so a crashed cron run no longer erases it.
+
+{/* Sources: general (no claim about Mynt's queue settings). */}
+
+A general caveat: a queue protects work only if the queue itself survives. In RabbitMQ that means durable queues and persistent messages; otherwise a broker restart loses what a cron crash could not.
+
+{/* Sources: F:ca32d0b6, F:1d7094e5. */}
+
+The price came in two parts. Data was no longer fresh the moment cron ran: it could lag while work waited in the queue or retried. And there was now a broker to operate, with connections, durability and monitoring that a cron job never needed.
+
+<ScenarioDemo slot="demo" chapter="cron" {...demos.cron} />
+
+</StoryChapter>
+
+<StoryChapter id="ack" title="Ack at the right time" stage={2} labels={diagramLabels} dir="ltr">
+
+{/* Sources: general. */}
+
+A queue keeps a message safe only until a consumer says it is done with it. In RabbitMQ that signal is the acknowledgement, or ack. If a consumer acks a message as soon as it receives it, or uses automatic acks, and then crashes before saving, the broker has already deleted the message. Nothing fails loudly. The data is just missing.
+
+{/* Sources: F:1e727868, F:2547d802, user (2026-10-10) (retry path). */}
+
+Mynt's consumers used manual acks and acked a message only after it was processed and written to the database. A message that failed was rejected without being requeued, so it took the retry path in the next chapter instead of bouncing straight back into the queue.
+
+{/* Sources: F:1f28435f. The crash-after-write case is general. */}
+
+Acking late closes the silent-loss hole, but it opens another one on purpose. If a worker crashes after the write and before the ack, RabbitMQ delivers the same message again. Hold on to that second delivery: it comes back in "What actually went wrong".
+
+<ScenarioDemo slot="demo" chapter="ack" {...demos.ack} />
+
+</StoryChapter>
+
+<StoryChapter id="retries" title="Retries" stage={3} labels={diagramLabels} dir="ltr">
+
+{/* Sources: general. */}
+
+Most upstream failures are temporary: a timeout, a dropped connection, an HTTP 429 that means "too many requests, slow down". The message is fine; the moment was bad, so it deserves another try. But retrying immediately, in a tight loop, hammers a provider that is already struggling.
+
+{/* Sources: F:8cb66993, F:2547d802, F:43c6ae32, F:458a5969, user (2026-10-10) (the flow: reject → DLX → per-delay TTL retry queues → back; x-death cap). "Which RabbitMQ updates each time…": general. */}
+
+Mynt's retries ran through RabbitMQ itself. A consumer that hit a failure rejected the message without requeue. The queue's dead-letter exchange (DLX) routed it to a retry queue whose TTL set the delay, with one retry queue per delay. When the TTL ran out, the message came back to be processed again. The x-death header, which RabbitMQ updates each time a message is dead-lettered, capped the number of attempts. Backoff had jitter, and on an HTTP 429 the wait honored the provider's Retry-After header.
+
+{/* Sources: general. */}
+
+Why jitter matters: when many workers fail at the same moment and all wait the same delay, they also retry at the same moment. The provider sees silence, then a spike, again and again. Adding a random amount to each wait spreads those retries out. And Retry-After is the provider saying exactly how long to wait; honoring it beats guessing.
+
+{/* Sources: F:bcbf9d80. */}
+
+Every retry adds latency. Bounded attempts and backoff were used to keep retries from making an upstream outage worse, at the cost of slower recovery for each message that failed.
+
+<RetryChart slot="demo" {...chart} />
+
+</StoryChapter>
+
+<StoryChapter id="duplicates" title="What actually went wrong" stage={4} labels={diagramLabels} dir="ltr">
+
+{/* Sources: F:fc2483ec, F:6f488b9a. */}
+
+So far, this is the design working as planned. Here is what it did in practice: retries and redelivery caused duplicate processing. The same message was processed more than once.
+
+{/* Sources: general. */}
+
+That is not a RabbitMQ bug. It is the deal. Acking after the write and retrying on failure give you at-least-once delivery: the broker promises not to lose a message, and in exchange it may hand you the same message twice. Exactly-once delivery is not something you can rely on a broker for. What you can build is an exactly-once effect: a consumer that, given the same message twice, leaves the data as if it had seen it once. That property is called idempotency.
+
+{/* Sources: F:6f488b9a, F:fc4a772e, F:a6eff09b. */}
+
+After the duplicates were observed, Mynt's consumers were made idempotent in code. They deduplicated messages by event ID, so a retry or a redelivery no longer duplicated stored data.
+
+{/* Sources: the order of events is F:6f488b9a ("after duplicate processing was observed"). The advice is general. */}
+
+The lesson: acking late and retrying are both right, and together they make duplicates a matter of when, not if. Make consumers idempotent before the first duplicate shows up, not after.
+
+{/* Sources: general. */}
+
+Idempotency has a price too: every message needs a stable ID, and every write has to respect it.
+
+<ScenarioDemo slot="demo" chapter="duplicates" {...demos.duplicates} />
+
+<DedupTable slot="demo" caption="Demo table: one row per stored event" columns={['event_id', 'type', 'nft']} duplicate="(duplicate)" />
+
+</StoryChapter>
+
+<StoryChapter id="poison" title="Poison messages" stage={5} labels={diagramLabels} dir="ltr">
+
+{/* Sources: general. */}
+
+Some messages will never succeed: a payload the parser can't read, data that breaks an assumption in the code. Retrying does not help. With unlimited retries, they cycle forever, burn capacity and bury real errors in noise.
+
+{/* Sources: F:bcbf9d80, F:8cb66993, F:e0097a0a, F:43c6ae32, user (2026-10-10). */}
+
+Mynt's attempts were bounded. A message that used up its retries was moved to a parking-lot dead-letter queue, and an alert went out.
+
+{/* Sources: F:3ab2f064, user (2026-10-10) ("the quorum queue's delivery limit caught messages that were redelivered because they crashed the worker itself"). Why x-death does not move: general. */}
+
+Some messages fail harder: they crash the worker itself. The consumer never gets to reject them, so the x-death count never moves, and RabbitMQ simply redelivers them to the next worker. For those, Mynt's quorum queues had a delivery limit: once a message had been redelivered too many times, the queue dead-lettered it.
+
+{/* Sources: F:5dae6600. What a recovery workflow involves: general. */}
+
+Parking a message stops the loop; it does not fix the message. Someone has to look at the parking lot, fix the cause, then replay or drop what is there, so a dead-letter queue needs a recovery workflow.
+
+<ScenarioDemo slot="demo" chapter="poison" {...demos.poison} />
+
+</StoryChapter>
+
+<StoryChapter id="breaker" title="The provider that is down" stage={6} labels={diagramLabels} dir="ltr">
+
+{/* Sources: general (F:36c923f3 records the rationale "stop repeated calls when an upstream source was persistently unhealthy"). */}
+
+Retries assume the failure is brief. When a provider is fully down, every message for it fails, every retry fails too, and the retries pile load onto a service that is trying to recover. Bounded retries then end in the dead-letter queue, which is worse: the parking lot fills with healthy messages whose only problem was timing, and each one has to be replayed by hand.
+
+{/* Sources: F:d8e2ce10, F:1708f3e4, F:36c923f3, user (2026-10-10) ("consumption from that provider paused and the messages waited in the queue. They were NOT sent to the DLQ"). */}
+
+Mynt put circuit breakers around upstream processing. When a provider kept failing, a breaker opened and consumption from that provider paused. Its messages were not sent to the dead-letter queue; they waited in the queue until the provider was healthy again.
+
+{/* Sources: general. */}
+
+A circuit breaker has three states. Closed: calls go through as normal. Open: after too many failures, calls stop at once, without touching the provider. Half-open: after a cool-down, a trial call goes through. If it succeeds, the breaker closes; if it fails, the breaker opens again.
+
+{/* Key lesson. Sources: general, drawn from F:1708f3e4, F:e0097a0a and user (2026-10-10). */}
+
+<aside class="story__lesson">
+  <p>Retries and a dead-letter queue are for a bad message. A circuit breaker is for a dependency that is down. Don’t mix them.</p>
+</aside>
+
+{/* Sources: F:41a46d68. */}
+
+While a circuit is open, data from that provider is stale or incomplete.
+
+<ScenarioDemo slot="demo" chapter="breaker" {...demos.breaker} />
+
+</StoryChapter>
+
+<StoryChapter id="backpressure" title="Backpressure" stage={7} labels={diagramLabels} dir="ltr">
+
+{/* Sources: general. */}
+
+Peaks are where pipelines tip over. A consumer that takes every message it can holds hundreds of unacked messages in memory and fires calls at providers as fast as it can, and the providers answer with 429s.
+
+{/* Sources: F:229e151d, F:2547d802. What prefetch does: general. */}
+
+Mynt's consumers had a prefetch limit and concurrency limits. Prefetch caps how many unacked messages a consumer holds at once; the broker stops sending more until it acks some. Together, these limits gave backpressure to the workers and to the external APIs.
+
+{/* Sources: F:0168395d. "Work waits… longer": general consequence, consistent with F:ca32d0b6. */}
+
+Tuned conservatively, those limits also cap peak throughput: at a peak, work waits in the queue a little longer.
+
+<PrefetchDemo slot="demo" {...prefetch} />
+
+</StoryChapter>
+
+</IngestionStory>
+
+<Section id="takeaways" title="Takeaways">
+
+{/* Sources: framing. */}
+
+If you are building scheduled ingestion over upstreams you don't control, here is a checklist to take with you. Every item has a price. Pay it on purpose.
+
+<ol class="takeaways">
+
+{/* Takeaway 1 sources: F:36c923f3, F:d8e2ce10, F:ca32d0b6, F:1d7094e5. */}
+
+<li><p><strong>Separate scheduling from processing.</strong> Cron publishes work; consumers do it.</p><p class="takeaways__price"><strong>Price:</strong> data can lag, and you now run a broker.</p></li>
+
+{/* Takeaway 2 sources: F:1e727868, F:1f28435f. */}
+
+<li><p><strong>Ack after the write, never on receipt.</strong></p><p class="takeaways__price"><strong>Price:</strong> a crash after the write means the message comes again.</p></li>
+
+{/* Takeaway 3 sources: F:bcbf9d80, F:458a5969, F:8cb66993. */}
+
+<li><p><strong>Retry transient failures with bounded attempts, jittered backoff and Retry-After.</strong></p><p class="takeaways__price"><strong>Price:</strong> more latency for every message that fails.</p></li>
+
+{/* Takeaway 4 sources: F:6f488b9a, F:fc4a772e; the price is general. */}
+
+<li><p><strong>Make every consumer idempotent from day one.</strong> Mynt added it after duplicates appeared; you don't have to wait for that.</p><p class="takeaways__price"><strong>Price:</strong> a stable ID on every message and a check on every write.</p></li>
+
+{/* Takeaway 5 sources: F:e0097a0a, F:5dae6600, F:1708f3e4, F:41a46d68. */}
+
+<li><p><strong>Park bad messages; break the circuit on a dead dependency.</strong> Retries and a dead-letter queue are for a bad message; a circuit breaker is for a dependency that is down.</p><p class="takeaways__price"><strong>Price:</strong> a recovery workflow for the parking lot, and stale data while a circuit is open.</p></li>
+
+{/* Takeaway 6 sources: F:229e151d, F:0168395d. */}
+
+<li><p><strong>Limit prefetch and concurrency.</strong></p><p class="takeaways__price"><strong>Price:</strong> lower throughput at peaks.</p></li>
+
+</ol>
+
+{/* Sources: F:1e7d027a. */}
+
+With these in place, Mynt's collection work was preserved for processing, and ingestion tolerated upstream failures without depending on one synchronous run.
+
+</Section>

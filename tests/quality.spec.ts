@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const CASE_STUDIES = ['/case-studies/getridley/', '/ar/case-studies/getridley/'];
+const CASE_STUDIES = ['/case-studies/getridley/', '/ar/case-studies/getridley/', '/case-studies/mynt/', '/ar/case-studies/mynt/'];
 
 async function seriousViolations(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -66,12 +66,26 @@ test.describe('mobile', () => {
       await page.goto(path);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow).toBeLessThanOrEqual(0);
-      const panel = (await page.locator('[data-ex]').boundingBox())!;
-      const svg = (await page.locator('[data-ex] svg').boundingBox())!;
-      expect(svg.width).toBeLessThanOrEqual(panel.width);
-      const buttons = page.locator('[data-ex] .ex__btns');
-      const box = (await buttons.boundingBox())!;
-      expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width);
+      if (path.includes('getridley')) {
+        const panel = (await page.locator('[data-ex]').boundingBox())!;
+        const svg = (await page.locator('[data-ex] svg').boundingBox())!;
+        expect(svg.width).toBeLessThanOrEqual(panel.width);
+        const buttons = page.locator('[data-ex] .ex__btns');
+        const box = (await buttons.boundingBox())!;
+        expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width);
+        return;
+      }
+      for (const el of await page.locator('[data-demo], .rchart svg, .chapter__figure svg').all()) {
+        const box = (await el.boundingBox())!;
+        const column = (await el.locator('xpath=ancestor::section[1]').boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(column.x - 0.5);
+        expect(box.x + box.width).toBeLessThanOrEqual(column.x + column.width + 0.5);
+      }
+      for (const btns of await page.locator('.scn__btns').all()) {
+        const panel = (await btns.locator('xpath=ancestor::*[@data-demo][1]').boundingBox())!;
+        const box = (await btns.boundingBox())!;
+        expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width + 0.5);
+      }
     });
   }
 });

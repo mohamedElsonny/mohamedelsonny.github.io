@@ -23,6 +23,8 @@ export const projects: ProjectItem[] = [
     summary:
       'Built the backend for an NFT marketplace with OpenSea integration. Decoupled ingestion from 5+ blockchains and 3+ APIs through RabbitMQ, with retries and circuit breakers.',
     tags: ['RabbitMQ', 'Circuit Breaker', 'Retries', 'OpenSea'],
+    // Case study: docs/superpowers/specs/2026-10-10-mynt-case-study-design.md.
+    href: '/case-studies/mynt/',
   },
   {
     // project b979c75a-f6d2-5b12-884b-7ca5d04871a9.

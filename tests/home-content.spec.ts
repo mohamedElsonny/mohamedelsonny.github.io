@@ -43,8 +43,8 @@ test('projects appear in the spec order with their labels', async ({ page }) => 
   const rows = page.locator('#projects .row');
   await expect(rows.locator('.row__title')).toHaveText([
     'Syft App',
-    'Mynt.la',
-    // The linked row's title also holds its decorative ↗ arrow (aria-hidden).
+    'Mynt.la↗',
+    // Linked rows' titles also hold their decorative ↗ arrow (aria-hidden).
     'Getridley↗',
     'Mozare3',
     'Yoga Digital Library',
@@ -64,21 +64,25 @@ test('projects appear in the spec order with their labels', async ({ page }) => 
   await expect(rows.nth(0).locator('.tag')).toHaveText(['NestJS', 'GraphQL', 'Stripe', 'Redis']);
 });
 
-test('only the Getridley row links to its case study', async ({ page }) => {
+test('the Mynt.la and Getridley rows link to their case studies', async ({ page }) => {
   const links = page.locator('.row a');
-  await expect(links).toHaveCount(1);
-  await expect(links).toHaveAttribute('href', '/case-studies/getridley/');
-  await expect(links).toContainText('Getridley');
-  await expect(page.locator('.row__arrow')).toHaveCount(1);
+  await expect(links).toHaveCount(2);
+  expect(await links.evaluateAll((els) => els.map((a) => a.getAttribute('href')))).toEqual([
+    '/case-studies/mynt/',
+    '/case-studies/getridley/',
+  ]);
+  await expect(page.locator('.row__arrow')).toHaveCount(2);
 });
 
-test('the Getridley row shows a visible case-study call to action', async ({ page }) => {
-  const cta = page.locator('#projects .row--link .row__cta');
-  await expect(cta).toHaveCount(1);
-  await expect(cta).toBeVisible();
-  await expect(cta).toHaveText('Read the case study →');
-  await expect(cta).toHaveCSS('color', 'rgb(94, 234, 212)');
-  await expect(page.locator('.row__cta')).toHaveCount(1);
+test('linked rows show a visible case-study call to action', async ({ page }) => {
+  const cta = page.locator('.row__cta');
+  await expect(cta).toHaveCount(2);
+  for (const c of await cta.all()) {
+    await expect(c).toBeVisible();
+    await expect(c).toHaveText('Read the case study →');
+    await expect(c).toHaveCSS('color', 'rgb(94, 234, 212)');
+  }
+  await expect(page.locator('#projects .row--link .row__cta')).toHaveCount(2);
 });
 
 test('résumé link downloads the PDF', async ({ page }) => {

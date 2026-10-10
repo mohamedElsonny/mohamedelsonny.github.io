@@ -1,0 +1,439 @@
+---
+# Lead sources: A:b65205f0, M:1158cefb, A:0d663337, F:d1e7f7cb, F:aaef9a06 (decision a8366407), F:1e7d027a, F:1f28435f → F:fc2483ec.
+title: "جمع بيانات مجدول يصمد حين تتعطل المصادر"
+description: "جمع Mynt المجدول للبيانات من خمس شبكات blockchain أو أكثر وثلاث APIs أو أكثر، مشكلةً بعد مشكلة: RabbitMQ، والـ ack بعد الكتابة، وretries مع jitter، وconsumers من نوع idempotent، وparking-lot DLQ، وcircuit breakers، وbackpressure، وثمن كل حل."
+lead: "كانت Mynt.la سوق NFT يجمع المعاملات والـ NFTs والتحليلات من خمس شبكات blockchain أو أكثر، ومن ثلاث APIs خارجية أو أكثر، منها OpenSea. بنيتُ الـ backend الخاص بها، وكنتُ صاحب القرار المعماري بفصل هذا الجمع عبر RabbitMQ. هذه قصة كيف صار هذا المسار يصمد أمام تعطل المصادر، مشكلةً بعد مشكلة. لكل حل ثمن، وأحد هذه الأثمان صار المشكلة التالية."
+lang: ar
+translationOf: mynt
+label: "Web3 وNFTs"
+tags: ["RabbitMQ", "Cron", "Retries", "Dead-letter queue", "Circuit Breaker", "Idempotency"]
+---
+
+import Section from '../../../components/Section.astro';
+import IngestionStory from '../../../components/case-study/IngestionStory.astro';
+import StoryChapter from '../../../components/case-study/StoryChapter.astro';
+import ScenarioDemo from '../../../components/case-study/ScenarioDemo.astro';
+import DedupTable from '../../../components/case-study/DedupTable.astro';
+import RetryChart from '../../../components/case-study/RetryChart.astro';
+import PrefetchDemo from '../../../components/case-study/PrefetchDemo.astro';
+
+export const diagramLabels = {
+  nodes: {
+    providers: { main: 'المصادر', sub: 'شبكات + APIs' }, db: { main: 'قاعدة البيانات' },
+    cron: { main: 'Cron', sub: 'يجدول العمل' }, exchange: { main: 'Exchange', sub: 'RabbitMQ' },
+    queue: { main: 'Queue' }, consumer: { main: 'Consumer', sub: 'جلب + حفظ' },
+    retry: { main: 'Retry', sub: 'TTL queues' }, parking: { main: 'Parking lot' },
+  },
+  ack: 'ack بعد الحفظ',
+  dedup: { on: 'dedup', off: 'بلا dedup', hit: 'dedup ✓' },
+  breaker: { closed: 'closed', open: 'open', 'half-open': 'half-open', off: 'بلا breaker' },
+  prefetch: 'prefetch',
+  crashed: 'تعطّل', down: 'متوقف', lost: 'ضاع العمل ✕', stale: 'قديمة',
+  caption: 'رسم مبسّط: queue واحد وconsumer واحد ومصدر واحد تمثل الكثير.',
+};
+
+export const demos = {
+  cron: {
+    title: 'جرّب: أسقِط الـ cron',
+    note: 'عرض توضيحي مُعَدّ مسبقًا. الأرقام والبيانات للتوضيح فقط، وليست إعدادات Mynt الحقيقية.',
+    idle: 'اختر سيناريو لتشغيله.',
+    buttons: [
+      { label: 'أسقِط الـ cron الساذج', run: 'naive-crash' },
+      { label: 'أسقِط الـ cron مع الـ queue', run: 'queued-crash' },
+    ],
+    runs: [
+      {
+        id: 'naive-crash',
+        heading: 'أسقِط الـ cron الساذج',
+        steps: [
+          'يبدأ الـ cron التشغيل ويستدعي المصدر الأول.',
+          'يكتب بيانات هذا المصدر في قاعدة البيانات.',
+          'تتعطل عملية الـ cron في منتصف التشغيل.',
+          'كل مصدر لم تصل إليه يُتخطّى. لم يُسجَّل هذا العمل في أي مكان، فينتظر التشغيل المجدول التالي.',
+        ],
+      },
+      {
+        id: 'queued-crash',
+        heading: 'أسقِط الـ cron مع الـ queue',
+        steps: [
+          'ينشر الـ cron مهام التشغيل إلى RabbitMQ، فتنتظر في الـ queue.',
+          'تتعطل عملية الـ cron.',
+          'يأخذ consumer المهمة التالية ويستدعي المصدر. لم يمسّها التعطل أصلًا.',
+          'تُحفظ النتيجة.',
+          'لم يضع شيء. المهام المتبقية تنتظر في الـ queue خارج عملية الـ cron، والـ consumers مستمرة في العمل.',
+        ],
+      },
+    ],
+  },
+  ack: {
+    title: 'جرّب: أسقِط الـ worker',
+    note: 'عرض توضيحي مُعَدّ مسبقًا. الأرقام والبيانات للتوضيح فقط، وليست إعدادات Mynt الحقيقية.',
+    idle: 'اختر سيناريو لتشغيله.',
+    buttons: [
+      { label: 'تعطّل قبل الحفظ', run: 'crash-before-save' },
+      { label: 'تعطّل بعد الحفظ', run: 'crash-after-save' },
+    ],
+    runs: [
+      {
+        id: 'crash-before-save',
+        heading: 'تعطّل قبل الحفظ',
+        steps: [
+          'يأخذ consumer رسالة، ولم يرسل لها ack بعد.',
+          'يجلب البيانات من المصدر.',
+          'يتعطل الـ worker قبل الحفظ.',
+          'لم يصل ack لهذه الرسالة، فيعيدها RabbitMQ إلى الـ queue. ولو أُرسل الـ ack عند الاستلام لضاعت الرسالة دون أن يعلم أحد.',
+          'يأخذها worker من جديد، ويجلب البيانات ويحفظها.',
+          'الآن فقط يرسل الـ worker الـ ack. لم يضع شيء.',
+        ],
+      },
+      {
+        id: 'crash-after-save',
+        heading: 'تعطّل بعد الحفظ',
+        steps: [
+          'يأخذ consumer رسالة.',
+          'يجلب البيانات ويحفظ الصف.',
+          'يتعطل الـ worker بعد الحفظ وقبل أن يرسل الـ ack.',
+          'لم يصل ack لهذه الرسالة، فيسلّمها RabbitMQ مرة أخرى. وهذه الإعادة مقصودة.',
+          'يعالجها worker من جديد ويحفظ الصف نفسه مرة ثانية.',
+          'الآن وصل الـ ack، وفي قاعدة البيانات صف مكرر. تذكّر هذا الصف الثاني.',
+        ],
+      },
+    ],
+  },
+  duplicates: {
+    title: 'جرّب: الرسالة نفسها مرتين',
+    note: 'عرض توضيحي مُعَدّ مسبقًا. الأرقام والبيانات للتوضيح فقط، وليست إعدادات Mynt الحقيقية.',
+    idle: 'اختر سيناريو لتشغيله.',
+    buttons: [{ label: 'سلّم الرسالة مرة أخرى', run: 'redeliver', alt: 'redeliver-dedup' }],
+    toggle: { label: 'Dedup بالـ event ID' },
+    runs: [
+      {
+        id: 'redeliver',
+        heading: 'سلّم الرسالة مرة أخرى، بدون dedup',
+        steps: [
+          'تصل الرسالة evt_7c21. يجلب الـ consumer البيانات ويحفظ الصف.',
+          'يتعطل الـ worker قبل أن يرسل الـ ack.',
+          'يسلّم RabbitMQ الرسالة evt_7c21 مرة أخرى.',
+          'بدون dedup، يحفظها الـ consumer مرة أخرى: حدث واحد وصفّان.',
+          'يرسل الـ ack. نفّذ المسار ما طُلب منه بالضبط، والبيانات خاطئة.',
+        ],
+      },
+      {
+        id: 'redeliver-dedup',
+        heading: 'سلّم الرسالة مرة أخرى، مع dedup بالـ event ID',
+        steps: [
+          'تصل الرسالة evt_7c21. يجلب الـ consumer البيانات ويحفظ الصف.',
+          'يتعطل الـ worker قبل أن يرسل الـ ack.',
+          'يسلّم RabbitMQ الرسالة evt_7c21 مرة أخرى.',
+          'مع الـ dedup بالـ event ID، الرسالة evt_7c21 محفوظة بالفعل، فلا يغيّر التسليم الثاني شيئًا. ما زال لهذا الحدث صف واحد.',
+          'يرسل الـ ack، والتسليم المكرر لا يضر.',
+        ],
+      },
+    ],
+  },
+  poison: {
+    title: 'جرّب: رسالة تفشل دائمًا',
+    note: 'عرض توضيحي مُعَدّ مسبقًا. الأرقام والبيانات للتوضيح فقط، وليست إعدادات Mynt الحقيقية.',
+    idle: 'اختر سيناريو لتشغيله.',
+    buttons: [{ label: 'أرسل رسالة poison', run: 'poison' }],
+    runs: [
+      {
+        id: 'poison',
+        heading: 'أرسل رسالة poison',
+        steps: [
+          'تصل رسالة لن تنجح أبدًا، مثل payload لا يستطيع الـ parser قراءته.',
+          'تفشل المحاولة 1. يرفضها الـ consumer دون requeue، فيوجّهها الـ dead-letter exchange إلى retry queue.',
+          'ينتهي الـ TTL، فتعود إلى الـ queue.',
+          'تفشل المحاولة 2. كل مرور عبر الـ dead-letter exchange يرفع عدّاد x-death.',
+          'تعود مرة أخرى.',
+          'تفشل المحاولة 3. وصل العدّاد إلى الحد الأقصى: 3 محاولات في هذا العرض.',
+          'تنتقل إلى الـ parking lot، ويصدر التنبيه. وبقية الـ queue يواصل الحركة.',
+        ],
+      },
+    ],
+  },
+  breaker: {
+    title: 'جرّب: مصدر يتوقف',
+    note: 'عرض توضيحي مُعَدّ مسبقًا. الأرقام والبيانات للتوضيح فقط، وليست إعدادات Mynt الحقيقية.',
+    idle: 'اختر سيناريو لتشغيله.',
+    buttons: [{ label: 'أوقِف المصدر', run: 'provider-down', alt: 'provider-down-dlq' }],
+    toggle: { label: 'ماذا لو ذهبت الأعطال إلى الـ DLQ بدلًا من ذلك؟' },
+    runs: [
+      {
+        id: 'provider-down',
+        heading: 'أوقِف المصدر',
+        steps: [
+          'يتوقف المصدر عن العمل.',
+          'تفشل الاستدعاءات إليه.',
+          'بعد تكرار الفشل يصبح الـ breaker في حالة open، ويتوقف الاستهلاك من هذا المصدر مؤقتًا.',
+          'يواصل الـ cron النشر، وينتظر العمل الجديد في الـ queue: لا شيء يُستهلك، ولا شيء يذهب إلى الـ DLQ.',
+          'ما دامت الدائرة open، تصبح بيانات هذا المصدر قديمة.',
+          'يعود المصدر للعمل. والـ breaker المعتاد ينتظر فترة تهدئة، ثم يصبح في حالة half-open.',
+          'يمر استدعاء تجريبي واحد، وينجح.',
+          'يعود الـ breaker إلى closed، وتُفرغ الـ consumers الـ queue. لم يضع شيء، بل تأخر فقط.',
+        ],
+      },
+      {
+        id: 'provider-down-dlq',
+        heading: 'أوقِف المصدر، مع إرسال الأعطال إلى الـ DLQ',
+        steps: [
+          'يتوقف المصدر عن العمل، وهذه المرة لا يوجد breaker.',
+          'يفشل كل استدعاء، وتفشل كل retry أيضًا، فتزيد الحمل على مصدر يحاول التعافي.',
+          'تستنفد الرسائل محاولاتها وتنتهي في الـ parking lot، ويصدر التنبيه.',
+          'يواصل العمل الجديد الوصول، ويفشل بالطريقة نفسها، وينتهي هناك أيضًا.',
+          'امتلأ الـ parking lot برسائل سليمة، مشكلتها الوحيدة هي التوقيت.',
+          'عاد المصدر، لكن لا شيء يتحرك من تلقاء نفسه: يجب إعادة تشغيل كل رسالة في الـ parking lot يدويًا.',
+        ],
+      },
+    ],
+  },
+};
+
+export const chart = {
+  title: 'جرّب: عاصفة الـ retries',
+  note: 'عرض توضيحي مُعَدّ مسبقًا: 8 workers تفشل في اللحظة نفسها وتعيد المحاولة 3 مرات، بعد 1 ث و2 ث و4 ث. والـ rate limit للمصدر 6 طلبات في الثانية. الأرقام للتوضيح، وليست إعدادات Mynt.',
+  jitterLabel: 'Jitter',
+  r429Label: 'المصدر يرد بـ 429 مع Retry-After: 5 ث',
+  axis: { y: 'الطلبات في الثانية', x: 'الثواني' },
+  limitLabel: 'rate limit',
+  retryAfterLabel: 'Retry-After',
+  firstLabel: 'المحاولات الأولى',
+  captions: {
+    plain: { heading: 'بدون jitter.', text: 'الـ workers الثمانية التي فشلت معًا تعيد المحاولة معًا. يرى المصدر صمتًا ثم ذروة فوق حده، ثلاث مرات متتالية.' },
+    jitter: { heading: 'مع jitter.', text: 'يضيف كل worker مقدارًا عشوائيًا إلى كل انتظار، فتنتشر المحاولات الـ 24 نفسها وتبقى تحت الحد.' },
+    plain429: { heading: '429 بدون jitter.', text: 'رد المصدر بـ 429 مع Retry-After: 5 ث. لا أحد يعيد المحاولة قبل ذلك، لكن بدون jitter يعود الجميع في الثانية نفسها.' },
+    jitter429: { heading: '429 مع jitter.', text: 'احترام Retry-After مع إضافة jitter: لا شيء قبل 5 ث، ثم تنتشر الـ retries تحت الحد.' },
+  },
+};
+
+export const prefetch = {
+  title: 'جرّب: اضبط الـ prefetch',
+  note: 'عرض توضيحي فيه consumer واحد، وحد المصدر 6 استدعاءات في الوقت نفسه. الأرقام للتوضيح، وليست إعدادات Mynt.',
+  label: 'Prefetch',
+  explain: 'في هذا العرض يعالج الـ consumer كل رسالة يحملها في الوقت نفسه، فيكون الـ prefetch هو أيضًا عدد الاستدعاءات الجارية.',
+  readouts: {
+    throughput: 'الرسائل في الثانية',
+    calls: 'الاستدعاءات إلى المصدر في الوقت نفسه',
+    limit: 'الحد',
+  },
+  under: 'تحت حد المصدر. ارفع الـ prefetch فيرتفع معدل المعالجة معه.',
+  over: 'فوق الحد: يرد المصدر بـ 429، ويتوقف معدل المعالجة عن الارتفاع.',
+};
+
+<IngestionStory labels={diagramLabels} dir="rtl">
+
+<StoryChapter id="setup" title="السياق" stage={0} labels={diagramLabels} dir="rtl">
+
+{/* Sources: project 5afd6a66, A:0d663337, F:d1e7f7cb, F:72e6ffe3, M:4cb09610, M:1158cefb, A:b65205f0. */}
+
+كانت Mynt سوق Web3 وNFT. كان الـ backend الخاص بها يعرض أصول المحافظ والمعاملات على الشبكة، ويتكامل مع OpenSea. ولكي يفعل ذلك، كان يجمع المعاملات والـ NFTs والتحليلات من خمس شبكات blockchain أو أكثر، منها Ethereum وSolana وPolygon، ومن ثلاث APIs خارجية أو أكثر، منها OpenSea، ثم يخزّن البيانات ويعرضها.
+
+{/* Sources: M:44245385, F:e3f47f28, F:089001ad, F:35c3c185. Last sentence: general. */}
+
+وصل ذلك إلى ما يُقدَّر بمئات إلى نحو 1000 تحديث يوميًا، مع ذروات أعلى أحيانًا. وكانت المشكلة تشغيل هذا الجمع وفق جدول زمني، عبر مصادر خارجية كثيرة، دون أن يضيع أي عمل، بينما تتعطل هذه المصادر: بعضها لحظةً، وبعضها مرةً بعد مرة. فأي مصدر خارجي قد يبطئ، أو يفرض rate limit، أو يتوقف، وفق توقيته الخاص.
+
+{/* Sources: F:aaef9a06. The rest: a description of the page. */}
+
+كنتُ صاحب القرار المعماري وتحليل الـ tradeoffs الخاص به. وتتتبع بقية الصفحة هذا التصميم مشكلةً بعد مشكلة. لكل فصل الأجزاء الأربعة نفسها: المشكلة، وما فعلته Mynt، والثمن، وعرض صغير يمكنك تشغيله. العروض مُعدّة مسبقًا، وأرقامها للتوضيح فقط، وليست إعدادات Mynt الحقيقية.
+
+</StoryChapter>
+
+<StoryChapter id="cron" title="الـ cron الساذج" stage={1} labels={diagramLabels} dir="rtl">
+
+{/* Sources: F:811392e6 (rejected option, retrospective baseline: "simpler to operate… couples successful collection to one scheduler process and handles bursts and failures poorly"). The crash walkthrough is general. */}
+
+أبسط تصميم يفعل كل شيء داخل مهمة الـ cron: يستيقظ، ويستدعي كل مصدر، ويكتب النتائج، ثم ينتهي. تشغيله سهل. لكنه يربط الجمع كله بعملية واحدة يجب أن تُكمل تشغيلًا واحدًا. فإذا تعطلت هذه العملية في المنتصف، أو جعلتها دفعة كبيرة من العمل تطول أو تتجاوز الـ timeout، فكل ما لم تصل إليه لا يُجمع ببساطة، ولا يسجّل شيء أن هذا العمل كان مستحقًا. وبالنظر إلى الوراء، هذا هو خط الأساس الذي يُقاس عليه التصميم الحقيقي، وليس شيئًا شغّلته Mynt.
+
+{/* Sources: F:d8e2ce10, F:7f5f0068, F:4040a84b, F:36c923f3, F:35c3c185, F:1e7d027a. */}
+
+فصلت Mynt الجدولة عن المعالجة. صارت مهام الـ cron تنشر عمل الجمع إلى RabbitMQ فقط. وكانت الـ consumers تأخذ هذا العمل من الـ queue، وتجمع المعاملات والـ NFTs والتحليلات عبر الشبكات والـ APIs، ثم تخزّنها. وما إن تدخل المهمة إلى الـ queue حتى تعيش خارج عملية الـ cron، فلا يمحوها تعطل الـ cron بعد ذلك.
+
+{/* Sources: general (no claim about Mynt's queue settings). */}
+
+ملاحظة عامة: الـ queue لا يحمي العمل إلا إذا بقي هو نفسه سليمًا. وفي RabbitMQ يعني ذلك durable queues وpersistent messages، وإلا فإن إعادة تشغيل الـ broker تُضيّع ما لم يستطع تعطل الـ cron أن يُضيّعه.
+
+{/* Sources: F:ca32d0b6, F:1d7094e5. */}
+
+جاء الثمن في جزأين. لم تعد البيانات حديثة لحظة تشغيل الـ cron، بل قد تتأخر بينما ينتظر العمل في الـ queue أو تُعاد محاولته. وصار هناك broker يجب تشغيله، باتصالاته والـ durability ومراقبته، وهي أمور لم تحتجها مهمة cron قط.
+
+<ScenarioDemo slot="demo" chapter="cron" {...demos.cron} />
+
+</StoryChapter>
+
+<StoryChapter id="ack" title="الـ ack في الوقت الصحيح" stage={2} labels={diagramLabels} dir="rtl">
+
+{/* Sources: general. */}
+
+الـ queue يحفظ الرسالة فقط حتى يعلن الـ consumer أنه انتهى منها. وفي RabbitMQ تُسمى هذه الإشارة acknowledgement، أو ack. فإذا أرسل الـ consumer الـ ack فور استلام الرسالة، أو استخدم automatic acks، ثم تعطل قبل الحفظ، فإن الـ broker يكون قد حذف الرسالة بالفعل. لا شيء يفشل بصوت مسموع؛ البيانات ببساطة غير موجودة.
+
+{/* Sources: F:1e727868, F:2547d802, user (2026-10-10) (retry path). */}
+
+استخدمت consumers في Mynt الـ manual acks، ولم ترسل ack للرسالة إلا بعد معالجتها وكتابتها في قاعدة البيانات. والرسالة التي تفشل كانت تُرفض دون requeue، فتسلك مسار الـ retry في الفصل التالي بدلًا من أن ترتد مباشرةً إلى الـ queue.
+
+{/* Sources: F:1f28435f. The crash-after-write case is general. */}
+
+تأخير الـ ack يسدّ ثغرة الضياع الصامت، لكنه يفتح ثغرة أخرى عن قصد. فإذا تعطل الـ worker بعد الكتابة وقبل الـ ack، يسلّم RabbitMQ الرسالة نفسها مرة أخرى. احتفظ بهذا التسليم الثاني في ذهنك، فهو يعود في فصل «ما الذي حدث خطأً فعلًا».
+
+<ScenarioDemo slot="demo" chapter="ack" {...demos.ack} />
+
+</StoryChapter>
+
+<StoryChapter id="retries" title="الـ retries" stage={3} labels={diagramLabels} dir="rtl">
+
+{/* Sources: general. */}
+
+معظم أعطال المصادر مؤقتة: timeout، أو اتصال انقطع، أو HTTP 429 يعني «طلبات كثيرة، تمهّل». الرسالة سليمة، لكن التوقيت كان سيئًا، فهي تستحق محاولة أخرى. غير أن إعادة المحاولة فورًا وفي حلقة سريعة تُثقل مصدرًا يعاني أصلًا.
+
+{/* Sources: F:8cb66993, F:2547d802, F:43c6ae32, F:458a5969, user (2026-10-10) (the flow: reject → DLX → per-delay TTL retry queues → back; x-death cap). "Which RabbitMQ updates each time…": general. */}
+
+كانت الـ retries في Mynt تمر عبر RabbitMQ نفسه. الـ consumer الذي يواجه فشلًا يرفض الرسالة دون requeue. فيوجّهها الـ dead-letter exchange (DLX) الخاص بالـ queue إلى retry queue يحدد الـ TTL فيه مدة الانتظار، مع retry queue لكل مدة. وحين ينتهي الـ TTL تعود الرسالة لتُعالَج من جديد. وكان الـ header المسمى x-death، الذي يحدّثه RabbitMQ في كل مرة تمر فيها الرسالة بالـ dead-lettering، يضع حدًا أقصى لعدد المحاولات. وكان الـ backoff يتضمن jitter، وعند HTTP 429 كان الانتظار يحترم الـ header المسمى Retry-After الذي يرسله المصدر.
+
+{/* Sources: general. */}
+
+لماذا الـ jitter مهم: حين تفشل workers كثيرة في اللحظة نفسها وتنتظر كلها المدة نفسها، فإنها تعيد المحاولة في اللحظة نفسها أيضًا. يرى المصدر صمتًا ثم ذروة، مرةً بعد مرة. وإضافة مقدار عشوائي إلى كل انتظار تنشر هذه المحاولات. أما Retry-After فهو المصدر يخبرك بالضبط كم تنتظر، واحترامه أفضل من التخمين.
+
+{/* Sources: F:bcbf9d80. */}
+
+كل retry يضيف تأخيرًا. واستُخدمت المحاولات المحدودة والـ backoff لمنع الـ retries من تضخيم تعطل المصدر، مقابل تعافٍ أبطأ لكل رسالة فشلت.
+
+<RetryChart slot="demo" {...chart} />
+
+</StoryChapter>
+
+<StoryChapter id="duplicates" title="ما الذي حدث خطأً فعلًا" stage={4} labels={diagramLabels} dir="rtl">
+
+{/* Sources: F:fc2483ec, F:6f488b9a. */}
+
+حتى الآن، هذا هو التصميم يعمل كما خُطط له. وهذا ما حدث عمليًا: سبّبت الـ retries وإعادة التسليم معالجةً مكررة. فقد عولجت الرسالة نفسها أكثر من مرة.
+
+{/* Sources: general. */}
+
+هذا ليس خطأً في RabbitMQ، بل هذا هو الثمن المتفق عليه. فالـ ack بعد الكتابة والـ retry عند الفشل يعطيانك at-least-once delivery: يعدك الـ broker بألا يضيّع رسالة، ومقابل ذلك قد يسلّمك الرسالة نفسها مرتين. ولا يمكنك الاعتماد على broker ليقدّم لك exactly-once delivery. ما يمكنك بناؤه هو أثر exactly-once: consumer إذا تلقى الرسالة نفسها مرتين، ترك البيانات كما لو أنه رآها مرة واحدة. وتُسمى هذه الخاصية idempotency.
+
+{/* Sources: F:6f488b9a, F:fc4a772e, F:a6eff09b. */}
+
+بعد ملاحظة التكرار، جُعلت consumers في Mynt من نوع idempotent داخل الكود. صارت تزيل التكرار بالـ event ID، فلم تعد الـ retries أو إعادة التسليم تكرر البيانات المخزنة.
+
+{/* Sources: the order of events is F:6f488b9a ("after duplicate processing was observed"). The advice is general. */}
+
+الدرس: تأخير الـ ack وإعادة المحاولة كلاهما صحيح، ومعًا يجعلان التكرار مسألة وقت لا أكثر. اجعل الـ consumers من نوع idempotent قبل أن يظهر أول تكرار، لا بعده.
+
+{/* Sources: general. */}
+
+وللـ idempotency ثمن أيضًا: تحتاج كل رسالة إلى ID ثابت، ويجب أن تحترمه كل عملية كتابة.
+
+<ScenarioDemo slot="demo" chapter="duplicates" {...demos.duplicates} />
+
+<DedupTable slot="demo" caption="جدول توضيحي: صف لكل حدث مخزّن" columns={['event_id', 'type', 'nft']} duplicate="(مكرر)" />
+
+</StoryChapter>
+
+<StoryChapter id="poison" title="رسائل poison" stage={5} labels={diagramLabels} dir="rtl">
+
+{/* Sources: general. */}
+
+بعض الرسائل لن تنجح أبدًا: payload لا يستطيع الـ parser قراءته، أو بيانات تكسر افتراضًا في الكود. إعادة المحاولة لا تفيد هنا. ومع retries بلا حد، تدور هذه الرسائل إلى الأبد، وتستهلك السعة، وتدفن الأخطاء الحقيقية في الضجيج.
+
+{/* Sources: F:bcbf9d80, F:8cb66993, F:e0097a0a, F:43c6ae32, user (2026-10-10). */}
+
+كانت المحاولات في Mynt محدودة. والرسالة التي تستنفد محاولاتها كانت تنتقل إلى parking-lot dead-letter queue، ويصدر تنبيه.
+
+{/* Sources: F:3ab2f064, user (2026-10-10) ("the quorum queue's delivery limit caught messages that were redelivered because they crashed the worker itself"). Why x-death does not move: general. */}
+
+وبعض الرسائل تفشل بشكل أعنف: تُسقط الـ worker نفسه. فلا يصل الـ consumer أبدًا إلى رفضها، ولا يتحرك عدّاد x-death، ويعيد RabbitMQ تسليمها ببساطة إلى الـ worker التالي. ولهذه الحالات كان لـ quorum queues في Mynt حدّ للتسليم، أي delivery limit: فإذا أُعيد تسليم الرسالة مرات كثيرة، طبّق عليها الـ queue الـ dead-lettering.
+
+{/* Sources: F:5dae6600. What a recovery workflow involves: general. */}
+
+إيقاف الرسالة في الـ parking lot يوقف الحلقة، لكنه لا يصلح الرسالة. يجب أن ينظر أحد في الـ parking lot، ويصلح السبب، ثم يعيد تشغيل ما فيه أو يحذفه. لذلك يحتاج الـ dead-letter queue إلى recovery workflow.
+
+<ScenarioDemo slot="demo" chapter="poison" {...demos.poison} />
+
+</StoryChapter>
+
+<StoryChapter id="breaker" title="المصدر المتوقف" stage={6} labels={diagramLabels} dir="rtl">
+
+{/* Sources: general (F:36c923f3 records the rationale "stop repeated calls when an upstream source was persistently unhealthy"). */}
+
+تفترض الـ retries أن العطل قصير. فحين يتوقف مصدر تمامًا، تفشل كل رسالة موجهة إليه، وتفشل كل retry أيضًا، وتضيف الـ retries حملًا على خدمة تحاول التعافي. ثم تنتهي الـ retries المحدودة في الـ dead-letter queue، وهذا أسوأ: يمتلئ الـ parking lot برسائل سليمة مشكلتها الوحيدة هي التوقيت، ويجب إعادة تشغيل كل واحدة منها يدويًا.
+
+{/* Sources: F:d8e2ce10, F:1708f3e4, F:36c923f3, user (2026-10-10) ("consumption from that provider paused and the messages waited in the queue. They were NOT sent to the DLQ"). */}
+
+وضعت Mynt circuit breakers حول معالجة المصادر. فحين يتكرر فشل مصدر، يصبح الـ breaker في حالة open، ويتوقف الاستهلاك من هذا المصدر مؤقتًا. لم تكن رسائله تُرسَل إلى الـ dead-letter queue، بل كانت تنتظر في الـ queue حتى يتعافى المصدر.
+
+{/* Sources: general. */}
+
+للـ circuit breaker ثلاث حالات. closed: تمر الاستدعاءات كالمعتاد. open: بعد فشل متكرر، تتوقف الاستدعاءات فورًا دون الوصول إلى المصدر. half-open: بعد فترة تهدئة، يمر استدعاء تجريبي؛ فإن نجح عاد الـ breaker إلى closed، وإن فشل عاد إلى open.
+
+{/* Key lesson. Sources: general, drawn from F:1708f3e4, F:e0097a0a and user (2026-10-10). */}
+
+<aside class="story__lesson">
+  <p>الـ retries والـ dead-letter queue لرسالة سيئة. والـ circuit breaker لخدمة تعتمد عليها وقد توقفت. لا تخلط بينهما.</p>
+</aside>
+
+{/* Sources: F:41a46d68. */}
+
+ما دامت الدائرة open، تكون بيانات هذا المصدر قديمة أو ناقصة.
+
+<ScenarioDemo slot="demo" chapter="breaker" {...demos.breaker} />
+
+</StoryChapter>
+
+<StoryChapter id="backpressure" title="الـ backpressure" stage={7} labels={diagramLabels} dir="rtl">
+
+{/* Sources: general. */}
+
+في الذروات تنهار المسارات. فالـ consumer الذي يأخذ كل رسالة يستطيع أخذها يحمل في الذاكرة مئات الرسائل التي لم يُرسل لها ack، ويطلق الاستدعاءات نحو المصادر بأسرع ما يمكن، فترد المصادر بـ 429.
+
+{/* Sources: F:229e151d, F:2547d802. What prefetch does: general. */}
+
+كان لـ consumers في Mynt حدٌّ للـ prefetch وحدود للـ concurrency. يحدد الـ prefetch عدد الرسائل التي لم يُرسل لها ack ويحملها الـ consumer في وقت واحد، فيتوقف الـ broker عن إرسال المزيد حتى يرسل الـ consumer ack لبعضها. ومعًا وفّرت هذه الحدود backpressure للـ workers وللـ APIs الخارجية.
+
+{/* Sources: F:0168395d. "Work waits… longer": general consequence, consistent with F:ca32d0b6. */}
+
+وحين تُضبط هذه الحدود بتحفّظ، فإنها تحدّ أيضًا من أقصى معدل للمعالجة: ففي الذروة ينتظر العمل في الـ queue وقتًا أطول قليلًا.
+
+<PrefetchDemo slot="demo" {...prefetch} />
+
+</StoryChapter>
+
+</IngestionStory>
+
+<Section id="takeaways" title="الخلاصة">
+
+{/* Sources: framing. */}
+
+إذا كنت تبني جمعًا مجدولًا للبيانات من مصادر لا تتحكم فيها، فهذه قائمة تأخذها معك. لكل بند ثمن، فادفعه عن قصد.
+
+<ol class="takeaways">
+
+{/* Takeaway 1 sources: F:36c923f3, F:d8e2ce10, F:ca32d0b6, F:1d7094e5. */}
+
+<li><p><strong>افصل الجدولة عن المعالجة.</strong> ينشر الـ cron العمل، وتنفّذه الـ consumers.</p><p class="takeaways__price"><strong>الثمن:</strong> قد تتأخر البيانات، وصار لديك broker تديره.</p></li>
+
+{/* Takeaway 2 sources: F:1e727868, F:1f28435f. */}
+
+<li><p><strong>أرسل الـ ack بعد الكتابة، لا عند الاستلام أبدًا.</strong></p><p class="takeaways__price"><strong>الثمن:</strong> التعطل بعد الكتابة يعني أن الرسالة ستصل مرة أخرى.</p></li>
+
+{/* Takeaway 3 sources: F:bcbf9d80, F:458a5969, F:8cb66993. */}
+
+<li><p><strong>أعد محاولة الأعطال المؤقتة بمحاولات محدودة، وbackoff مع jitter، واحترام Retry-After.</strong></p><p class="takeaways__price"><strong>الثمن:</strong> تأخير أكبر لكل رسالة تفشل.</p></li>
+
+{/* Takeaway 4 sources: F:6f488b9a, F:fc4a772e; the price is general. */}
+
+<li><p><strong>اجعل كل consumer من نوع idempotent من اليوم الأول.</strong> أضافتها Mynt بعد ظهور التكرار، ولست مضطرًا لانتظار ذلك.</p><p class="takeaways__price"><strong>الثمن:</strong> ID ثابت لكل رسالة، وفحص عند كل كتابة.</p></li>
+
+{/* Takeaway 5 sources: F:e0097a0a, F:5dae6600, F:1708f3e4, F:41a46d68. */}
+
+<li><p><strong>أوقف الرسائل السيئة في الـ parking lot، واقطع الدائرة حين تتوقف خدمة تعتمد عليها.</strong> الـ retries والـ dead-letter queue لرسالة سيئة، والـ circuit breaker لخدمة تعتمد عليها وقد توقفت.</p><p class="takeaways__price"><strong>الثمن:</strong> recovery workflow للـ parking lot، وبيانات قديمة ما دامت الدائرة open.</p></li>
+
+{/* Takeaway 6 sources: F:229e151d, F:0168395d. */}
+
+<li><p><strong>ضع حدودًا للـ prefetch والـ concurrency.</strong></p><p class="takeaways__price"><strong>الثمن:</strong> معدل معالجة أقل في الذروات.</p></li>
+
+</ol>
+
+{/* Sources: F:1e7d027a. */}
+
+بهذه الأنماط مجتمعة، حُفظ عمل الجمع في Mynt حتى يُعالَج، وصار مسار الجمع يتحمل أعطال المصادر دون الاعتماد على تشغيل متزامن واحد.
+
+</Section>
