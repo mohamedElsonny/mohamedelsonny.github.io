@@ -1438,6 +1438,14 @@ html[lang='ar'] .dg-label .dg-sub {
   display: none;
 }
 
+/* Later stages' boxes and lines stay as a faint outline, so the first stages do not float in an empty frame. */
+.dg:not([data-naive='yes']) .dg-node.is-off,
+.dg:not([data-naive='yes']) .dg-edge.is-off:not([data-naive-keep]) {
+  display: inline;
+  opacity: 0.45;
+  stroke-dasharray: 4 4;
+}
+
 /* State colours come after the highlight so they win on the current stage's pieces. */
 .dg[data-down='cron'] rect[data-node='cron'],
 .dg[data-down='consumer'] rect[data-node='consumer'],

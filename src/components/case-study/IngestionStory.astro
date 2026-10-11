@@ -47,6 +47,8 @@ const { labels, dir } = Astro.props;
     let frame = 0;
     let token = 0;
     let running: HTMLElement | null = null;
+    /** A finished run keeps its stage while its demo is on screen, so the result does not vanish. */
+    let held: HTMLElement | null = null;
 
     const scnOf = (chapter: HTMLElement) => chapter.querySelector<HTMLElement>('.scn');
     const figureOf = (chapter: HTMLElement) => chapter.querySelector<SVGElement>('.chapter__figure svg.dg');
@@ -76,9 +78,10 @@ const { labels, dir } = Astro.props;
 
     /** Cancels any run in `chapter`, returns its demo to idle and applies the idle state. */
     function cancel(chapter: HTMLElement): void {
-      if (running === chapter) {
-        token++;
+      if (running === chapter || held === chapter) {
+        if (running === chapter) token++;
         running = null;
+        held = null;
         locked = false;
         if (desktop.matches) schedule();
       }
@@ -188,12 +191,13 @@ const { labels, dir } = Astro.props;
       chapter.removeAttribute('data-run');
       chapter.setAttribute('data-done', id);
       hideDot(chapter);
-      locked = false;
-      schedule();
+      held = chapter;
     }
 
     function startRun(chapter: HTMLElement, id: string, button: HTMLElement): void {
-      if (running) cancel(running);
+      // A finished run in this chapter is no longer `running`, so clear the chapter as well.
+      if (running && running !== chapter) cancel(running);
+      cancel(chapter);
       const scn = scnOf(chapter);
       const group = scn?.querySelector<HTMLElement>(`[data-scn="${id}"]`);
       if (!scn || !group) return;
@@ -241,17 +245,24 @@ const { labels, dir } = Astro.props;
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
     desktop.addEventListener('change', () => {
-      if (running) cancel(running);
+      const busy = running ?? held;
+      if (busy) cancel(busy);
       schedule();
     });
 
-    // A running demo stops when its panel leaves the viewport (spec §7.4 item 7).
+    // A running demo stops when its panel leaves the viewport (spec §7.4 item 7); a finished one lets go of the stage.
     const demoSeen = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) continue;
           const chapter = entry.target.closest<HTMLElement>('[data-chapter]');
-          if (chapter && running === chapter) cancel(chapter);
+          if (!chapter) continue;
+          if (running === chapter) cancel(chapter);
+          else if (held === chapter) {
+            held = null;
+            locked = false;
+            schedule();
+          }
         }
       },
       { threshold: 0 },

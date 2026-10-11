@@ -35,9 +35,9 @@ const all = stage === 'all';
 /** With a number `stage`, only pieces that first appear up to that stage are rendered. */
 const shown = (from: Stage) => all || from <= stage;
 
-/** `is-new` marks the pieces of the shown stage; `is-off` (in `'all'` mode) parks the later ones. */
-const stageClass = (from: Stage) =>
-  all ? (from > 0 ? { 'is-off': true } : { 'is-new': true }) : from === stage ? { 'is-new': true } : {};
+/** `is-new` marks the pieces of the shown stage; `is-off` parks the later ones (boxes and lines stay as a faint outline). */
+const current = all ? 0 : stage;
+const stageClass = (from: Stage) => (from > current ? { 'is-off': true } : from === current ? { 'is-new': true } : {});
 
 const notes: Partial<Record<NodeId, { note: 'crashed' | 'down'; from: Stage }>> = {
   providers: { note: 'down', from: 0 },
@@ -64,7 +64,7 @@ const bellPath =
 >
   <g class="dg-shapes" transform={rtl ? 'matrix(-1 0 0 1 680 0)' : undefined}>
     {
-      EDGES.filter((e) => shown(e.stage)).map((e) => (
+      EDGES.map((e) => (
         <path
           class:list={['dg-edge', { 'dg-edge--dash': e.dashed }, stageClass(e.stage)]}
           id={`dg-${uid}-${e.id}`}
@@ -76,7 +76,7 @@ const bellPath =
       ))
     }
     {
-      NODES.filter((n) => shown(n.stage)).map((n) => (
+      NODES.map((n) => (
         <rect
           class:list={['dg-node', { 'dg-node--dash': n.dashed }, stageClass(n.stage)]}
           data-node={n.id}

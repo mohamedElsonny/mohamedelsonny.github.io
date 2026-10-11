@@ -40,8 +40,9 @@ for (const [path, price] of [[EN, 'Price:'], [AR, 'الثمن:']] as const) {
 }
 
 const figure = (page: Page, id: string) => page.locator(`[data-chapter="${id}"] .chapter__figure svg.dg`);
+/** Nodes drawn for the figure's stage; later stages' nodes are only a faint outline (`is-off`). */
 const nodesIn = (svg: Locator) =>
-  svg.locator('rect[data-node]').evaluateAll((els) => els.map((el) => el.getAttribute('data-node')));
+  svg.locator('rect[data-node]:not(.is-off)').evaluateAll((els) => els.map((el) => el.getAttribute('data-node')));
 const setState = (svg: Locator, attrs: Record<string, string>) =>
   svg.evaluate((el, a) => { for (const [k, v] of Object.entries(a)) el.setAttribute(`data-${k}`, v); }, attrs);
 const ROSE = 'rgb(251, 113, 133)';
@@ -65,12 +66,13 @@ test.describe('mobile figures', () => {
   test('each chapter figure renders exactly its stage', async ({ page }) => {
     await page.goto(EN);
     expect(await nodesIn(figure(page, 'setup'))).toEqual(['providers', 'db']);
+    await expectGhost(figure(page, 'setup'), 'queue');
     expect(await nodesIn(figure(page, 'cron'))).toEqual(['providers', 'db', 'cron', 'exchange', 'queue', 'consumer']);
     expect(await nodesIn(figure(page, 'retries'))).toEqual(['providers', 'db', 'cron', 'exchange', 'queue', 'consumer', 'retry']);
     expect(await nodesIn(figure(page, 'poison'))).toContain('parking');
     await expect(figure(page, 'retries').locator('rect[data-node="retry"]')).toHaveClass(/\bis-new\b/);
     await expect(figure(page, 'retries').locator('rect[data-node="queue"]')).not.toHaveClass(/\bis-new\b/);
-    await expect(figure(page, 'cron').locator('[data-edge="ack"]')).toHaveCount(0);
+    await expect(figure(page, 'cron').locator('[data-edge="ack"]:not(.is-off)')).toHaveCount(0);
     await expect(figure(page, 'ack').locator('[data-edge="ack"]')).toHaveCount(1);
     await expect(figure(page, 'duplicates').locator('rect[data-chip]')).toHaveCount(1);
     await expect(figure(page, 'backpressure').locator('rect[data-chip]')).toHaveCount(3);
@@ -183,13 +185,24 @@ const sticky = (page: Page) => page.locator('.story__stage svg.dg');
 async function centerChapter(page: Page, id: string) {
   await chapter(page, id).evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
 }
-/** Visible pieces of the sticky diagram that belong to a later stage than the one shown. */
+/** Visible pieces of the sticky diagram that belong to a later stage than the one shown, not counting the faint outline. */
 const piecesAhead = (page: Page) =>
   sticky(page).evaluate((svg) =>
-    [...svg.querySelectorAll('[data-from]')].filter(
-      (el) => Number(el.getAttribute('data-from')) > Number(svg.getAttribute('data-stage')) && getComputedStyle(el).display !== 'none',
-    ).length,
+    [...svg.querySelectorAll('[data-from]')].filter((el) => {
+      const style = getComputedStyle(el);
+      const ghost = el.matches('.dg-node, .dg-edge') && Number(style.opacity) < 0.5;
+      return Number(el.getAttribute('data-from')) > Number(svg.getAttribute('data-stage')) && style.display !== 'none' && !ghost;
+    }).length,
   );
+
+/** Later stages' boxes and lines are a faint outline without labels, so the first stages do not float in an empty frame. */
+async function expectGhost(svg: Locator, node: string) {
+  const rect = svg.locator(`rect[data-node="${node}"]`);
+  await expect(rect).toBeVisible();
+  await expect(rect).toHaveClass(/\bis-off\b/);
+  expect(Number(await rect.evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.5);
+  await expect(svg.locator(`[data-label="${node}"]`).filter({ visible: true })).toHaveCount(0);
+}
 
 test('the sticky diagram follows the active chapter', async ({ page }) => {
   await page.goto(EN);
@@ -199,7 +212,7 @@ test('the sticky diagram follows the active chapter', async ({ page }) => {
   const retry = sticky(page).locator('rect[data-node="retry"]');
   await expect(retry).toBeVisible();
   await expect(retry).toHaveClass(/\bis-new\b/);
-  await expect(sticky(page).locator('rect[data-node="parking"]')).toBeHidden();
+  await expectGhost(sticky(page), 'parking');
   expect(await sticky(page).locator('.is-new').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('data-from')))])).toEqual(['3']);
   expect(await piecesAhead(page)).toBe(0);
   await centerChapter(page, 'breaker');
@@ -208,6 +221,19 @@ test('the sticky diagram follows the active chapter', async ({ page }) => {
   expect(await piecesAhead(page)).toBe(0);
   await page.reload();
   await expect(sticky(page)).toHaveAttribute('data-stage', '6');
+});
+
+test('the setup stage outlines the pipeline still to come', async ({ page }) => {
+  await page.goto(EN);
+  await expect(sticky(page)).toHaveAttribute('data-stage', '0');
+  for (const node of ['cron', 'exchange', 'queue', 'consumer', 'retry', 'parking']) await expectGhost(sticky(page), node);
+  await expect(sticky(page).locator('[data-edge="conProv"]')).toBeVisible();
+  await expect(sticky(page).locator('[data-edge="naiveProv"]')).toBeHidden();
+  await expect(sticky(page).locator('rect[data-chip]').filter({ visible: true })).toHaveCount(0);
+  await centerChapter(page, 'cron');
+  await expect(sticky(page)).toHaveAttribute('data-stage', '1');
+  await setState(sticky(page), { naive: 'yes' });
+  await expect(sticky(page).locator('rect[data-node="retry"]')).toBeHidden();
 });
 
 test('a deep link shows the linked chapter\'s stage', async ({ page }) => {
@@ -420,6 +446,25 @@ test('starting another run cancels the first', async ({ page }) => {
   await expect(ch.locator('[data-live]')).toHaveText('Now it is acked, and the database holds a duplicate. Remember that second row.');
 });
 
+for (const viewport of [{ width: 1280, height: 800 }, { width: 375, height: 812 }]) {
+  test(`a new run after a finished one clears it at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.clock.install();
+    await page.goto(EN);
+    await run(page, 'ack', 'Crash before save');
+    const ch = chapter(page, 'ack');
+    await expect(ch).toHaveAttribute('data-done', 'crash-before-save');
+    await ch.getByRole('button', { name: 'Crash after save' }).click();
+    await page.clock.runFor(50);
+    await expect(ch).not.toHaveAttribute('data-done');
+    await expect(ch.locator('.scn__run').filter({ visible: true })).toHaveCount(1);
+    await expect(shownLines(page, 'ack', 'crash-before-save')).toHaveCount(0);
+    await page.clock.runFor(60_000);
+    await expect(ch).toHaveAttribute('data-done', 'crash-after-save');
+    await expect(shownLines(page, 'ack', 'crash-after-save')).toHaveCount(6);
+  });
+}
+
 test('scrolling a running demo out of view cancels it', async ({ page }) => {
   await page.clock.install();
   await page.goto(EN);
@@ -447,8 +492,14 @@ test('a running demo holds the sticky stage until it ends', async ({ page }) => 
   await expect(chapter(page, 'ack').locator('[data-demo]')).toBeInViewport();
   await expect(sticky(page)).toHaveAttribute('data-stage', '2');
   await page.clock.runFor(60_000);
-  await expect(sticky(page)).toHaveAttribute('data-stage', '3');
-  // Leaving a stage resets that chapter's demo (spec §7.4 item 2).
+  // The finished result stays up while its demo is on screen.
+  await expect(chapter(page, 'ack')).toHaveAttribute('data-done', 'crash-before-save');
+  await expect(sticky(page)).toHaveAttribute('data-stage', '2');
+  await expect(shownLines(page, 'ack', 'crash-before-save')).toHaveCount(6);
+  // Once the demo scrolls away the stage follows the reader, and leaving a stage resets that chapter's demo (spec §7.4 item 2).
+  await centerChapter(page, 'duplicates');
+  await page.clock.runFor(100);
+  await expect(sticky(page)).toHaveAttribute('data-stage', '4');
   await expect(chapter(page, 'ack')).not.toHaveAttribute('data-done');
 });
 
