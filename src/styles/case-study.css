@@ -209,9 +209,14 @@ html[lang='ar'] .cs__title {
     padding-inline: 48px;
   }
 
+  /* Static and without a band on desktop, like Home: over the cursor glow the band read as a stray box. */
   .cs .section__title {
-    margin-inline: -48px;
-    padding-inline: 48px;
+    position: static;
+    margin-inline: 0;
+    padding-inline: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 
@@ -1595,12 +1600,6 @@ html[lang='ar'] .dg-label .dg-sub {
   /* One diagram at a time on desktop: the sticky one. */
   .chapter__figure {
     display: none;
-  }
-
-  /* Titles stay inside the text column, not the full content width. */
-  .story .section__title {
-    margin-inline: 0;
-    padding-inline: 0;
   }
 }
 
