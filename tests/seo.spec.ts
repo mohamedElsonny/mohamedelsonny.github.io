@@ -58,6 +58,21 @@ test('og.png is a 1200×630 PNG', async ({ request }) => {
   expect(png.readUInt32BE(20)).toBe(630);
 });
 
+for (const path of ['/case-studies/mynt/', '/case-studies/getridley/', '/ar/case-studies/mynt/', '/ar/case-studies/getridley/']) {
+  test(`${path} shares its own 1200×630 card`, async ({ page, request }) => {
+    await page.goto(path);
+    const image = `/og${path.replace('/case-studies', '').replace(/\/$/, '')}.png`;
+    expect(await page.locator('meta[property="og:image"]').getAttribute('content')).toBe(`${SITE}${image}`);
+    expect(await page.locator('meta[name="twitter:image"]').getAttribute('content')).toBe(`${SITE}${image}`);
+    const res = await request.get(image);
+    expect(res.status()).toBe(200);
+    const png = await res.body();
+    expect(png.subarray(1, 4).toString('latin1')).toBe('PNG');
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
+  });
+}
+
 test('unknown paths render the 404 page', async ({ page }) => {
   const res = await page.goto('/does-not-exist');
   expect(res?.status()).toBe(404);

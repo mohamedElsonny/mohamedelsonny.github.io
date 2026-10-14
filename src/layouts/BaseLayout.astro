@@ -20,11 +20,13 @@ interface Props {
   noindex?: boolean;
   jsonLd?: Record<string, unknown>;
   alternates?: { lang: string; path: string }[];
+  /** A 1200×630 PNG under public/, made by `npm run og`. */
+  image?: string;
 }
 
-const { title, description, lang = 'en', dir = 'ltr', path = '/', noindex = false, jsonLd, alternates = [] } = Astro.props;
+const { title, description, lang = 'en', dir = 'ltr', path = '/', noindex = false, jsonLd, alternates = [], image = '/og.png' } = Astro.props;
 const canonical = new URL(path, Astro.site).href;
-const ogImage = new URL('/og.png', Astro.site).href;
+const ogImage = new URL(image, Astro.site).href;
 const skipLabel = lang === 'ar' ? 'انتقل إلى المحتوى' : 'Skip to content';
 ---
 

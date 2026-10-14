@@ -70,6 +70,7 @@ const jsonLd = {
   path={paths[lang]}
   alternates={alternates}
   jsonLd={jsonLd}
+  image={`/og/${lang === 'ar' ? 'ar/' : ''}${translationOf}.png`}
 >
   <slot name="head" slot="head" />
   <Spotlight />
